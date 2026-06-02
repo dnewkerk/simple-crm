@@ -25,9 +25,12 @@ Source spec: `instructions.md`. Build order: F2 → F1 → F3 → F4.
 - "Past" uses calendar-month boundaries (close date before the 1st of the current
   month), consistent with monthly bucketing — a date earlier *this* month still
   sits in the current-month column.
-- Column total is labeled "Total Expected Value" but sums each opp's raw `value`
-  (per the spec's explicit instruction); cards show the stored `expectedValue`.
-  Flagging the naming mismatch — would confirm intent with the PM.
+- Column total "Total Expected Value" sums each opp's `expectedValue` (the
+  risk-adjusted forecast = value × close-likelihood), matching the original
+  story ("a count and a total expected value") and the card's Expected figure.
+  (An early per-feature note said sum `value`; we dropped that as inconsistent
+  with the label. `value` = gross deal size; `expectedValue` = derived forecast;
+  there is no "actual value" column.)
 - Card click-to-detail was dropped earlier (no router); all values render inline.
 
 ### Migration test strategy (for the writeup)

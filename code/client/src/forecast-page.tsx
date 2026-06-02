@@ -20,7 +20,7 @@ const ForecastColumnView: React.FC<{ column: ForecastColumn }> = ({ column }) =>
             <h3 className="font-bold">{column.title}</h3>
             <span className="pl-2 text-sm text-gray-600">{column.count}</span>
         </div>
-        <p className="text-sm text-gray-600 mb-2">Total Expected Value: {formatCurrency(column.totalValue)}</p>
+        <p className="text-sm text-gray-600 mb-2">Total Expected Value: {formatCurrency(column.totalExpectedValue)}</p>
         {column.count === 0 ? (
             <p className="text-sm text-gray-400">No opportunities</p>
         ) : (

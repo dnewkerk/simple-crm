@@ -32,7 +32,7 @@ describe("buildForecast", () => {
             "Past / No Date Set",
             "Future",
         ]);
-        expect(cols.every(c => c.count === 0 && c.totalValue === 0)).toBe(true);
+        expect(cols.every(c => c.count === 0 && c.totalExpectedValue === 0)).toBe(true);
         // Past/No Date column still exposes its two sub-groups, empty.
         expect(cols[6].groups.map(g => g.heading)).toEqual(["Past", "No Date Set"]);
     });
@@ -51,15 +51,15 @@ describe("buildForecast", () => {
         );
         const byKey = Object.fromEntries(cols.map(c => [c.key, c]));
         expect(byKey["month-0"].count).toBe(1);
-        expect(byKey["month-0"].totalValue).toBe(100);
+        expect(byKey["month-0"].totalExpectedValue).toBe(50); // value 100 * 0.5
         expect(byKey["month-1"].count).toBe(1);
         expect(byKey["month-5"].count).toBe(1); // November
         expect(byKey["future"].count).toBe(1);
-        expect(byKey["future"].totalValue).toBe(400);
+        expect(byKey["future"].totalExpectedValue).toBe(200); // value 400 * 0.5
 
         const pastNoDate = byKey["past-nodate"];
         expect(pastNoDate.count).toBe(2);
-        expect(pastNoDate.totalValue).toBe(1100); // 500 + 600
+        expect(pastNoDate.totalExpectedValue).toBe(550); // (500 + 600) * 0.5
         expect(pastNoDate.groups[0]).toMatchObject({ heading: "Past" });
         expect(pastNoDate.groups[0].opportunities).toHaveLength(1);
         expect(pastNoDate.groups[1]).toMatchObject({ heading: "No Date Set" });

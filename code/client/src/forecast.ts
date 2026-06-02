@@ -27,7 +27,7 @@ export interface ForecastColumn {
     key: string;
     title: string;
     count: number;
-    totalValue: number; // sum of opportunity `value` (per spec)
+    totalExpectedValue: number; // sum of opportunity `expectedValue` (risk-adjusted forecast)
     groups: ForecastGroup[];
 }
 
@@ -48,7 +48,7 @@ const byCloseDateAsc = (a: Opportunity, b: Opportunity): number => {
     return 0;
 };
 
-const sumValue = (list: Opportunity[]): number => list.reduce((sum, o) => sum + (o.value || 0), 0);
+const sumExpectedValue = (list: Opportunity[]): number => list.reduce((sum, o) => sum + (o.expectedValue || 0), 0);
 
 /**
  * Bucket open opportunities into forecast columns:
@@ -82,7 +82,7 @@ export const buildForecast = (opps: Opportunity[], today: Date): ForecastColumn[
             key: `month-${i}`,
             title: MONTH_NAMES[monthDate.getMonth()],
             count: list.length,
-            totalValue: sumValue(list),
+            totalExpectedValue: sumExpectedValue(list),
             groups: [{ opportunities: list }],
         });
     }
@@ -93,7 +93,7 @@ export const buildForecast = (opps: Opportunity[], today: Date): ForecastColumn[
         key: "past-nodate",
         title: "Past / No Date Set",
         count: pastSorted.length + noDateSorted.length,
-        totalValue: sumValue(pastSorted) + sumValue(noDateSorted),
+        totalExpectedValue: sumExpectedValue(pastSorted) + sumExpectedValue(noDateSorted),
         groups: [
             { heading: "Past", opportunities: pastSorted },
             { heading: "No Date Set", opportunities: noDateSorted },
@@ -105,7 +105,7 @@ export const buildForecast = (opps: Opportunity[], today: Date): ForecastColumn[
         key: "future",
         title: "Future",
         count: futureSorted.length,
-        totalValue: sumValue(futureSorted),
+        totalExpectedValue: sumExpectedValue(futureSorted),
         groups: [{ opportunities: futureSorted }],
     });
 
