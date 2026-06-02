@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import Modal from "react-modal";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
 import { CustomField, Opportunity, Stage } from "./types";
 import {
@@ -8,6 +10,8 @@ import {
     buildPayload,
     validateOpportunity,
     hasErrors,
+    parseDateValue,
+    formatDateValue,
     OpportunityFormValues,
     OpportunityFieldErrors,
 } from "./opportunity-form-utils";
@@ -30,7 +34,13 @@ export const OpportunityForm: React.FC<{
     const isEdit = !!opportunity;
     const [stages, setStages] = useState<Stage[]>([]);
     const [oppFields, setOppFields] = useState<CustomField[]>([]);
-    const [values, setValues] = useState<OpportunityFormValues>({ stageId: "", value: "", name: "", customFieldValues: {} });
+    const [values, setValues] = useState<OpportunityFormValues>({
+        stageId: "",
+        value: "",
+        name: "",
+        expectedCloseDate: "",
+        customFieldValues: {},
+    });
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [error, setError] = useState("");
@@ -153,6 +163,19 @@ export const OpportunityForm: React.FC<{
                             className={inputClass}
                         />
                         {fieldErrors.value && <p className="text-red-500 text-sm mt-1">{fieldErrors.value}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Expected Close Date</label>
+                        <DatePicker
+                            selected={parseDateValue(values.expectedCloseDate)}
+                            onChange={(date: Date | null) => setValues(prev => ({ ...prev, expectedCloseDate: formatDateValue(date) }))}
+                            dateFormat="yyyy-MM-dd"
+                            isClearable
+                            placeholderText="No close date set"
+                            className={inputClass}
+                            wrapperClassName="w-full"
+                        />
                     </div>
 
                     {oppFields.map(field => (

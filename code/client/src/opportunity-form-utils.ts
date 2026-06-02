@@ -4,8 +4,30 @@ export interface OpportunityFormValues {
     stageId: number | "";
     value: string;
     name: string;
+    expectedCloseDate: string; // "YYYY-MM-DD", or "" when not set
     customFieldValues: Record<string, string>;
 }
+
+/** Normalize an API date value ("YYYY-MM-DD" or ISO datetime) to "YYYY-MM-DD". */
+export const normalizeDateString = (value: string | null | undefined): string =>
+    value ? String(value).slice(0, 10) : "";
+
+/** Format a Date as a local "YYYY-MM-DD" string (no timezone shift). */
+export const formatDateValue = (date: Date | null): string => {
+    if (!date) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+};
+
+/** Parse a "YYYY-MM-DD" string into a local Date, or null when empty/invalid. */
+export const parseDateValue = (value: string): Date | null => {
+    if (!value) return null;
+    const [y, m, d] = value.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+};
 
 /** Custom fields that apply to opportunities (entity defaults to "lead" when unset). */
 export const opportunityCustomFields = (fields: CustomField[]): CustomField[] =>
@@ -30,6 +52,7 @@ export const buildInitialValues = (
         stageId: opp?.stage?.id ?? stages[0]?.id ?? "",
         value: opp ? String(opp.value) : "",
         name: opp?.name ?? "",
+        expectedCloseDate: normalizeDateString(opp?.expectedCloseDate),
         customFieldValues,
     };
 };
@@ -39,6 +62,7 @@ export interface OpportunityPayload {
     stageId: number;
     value: number;
     name: string;
+    expectedCloseDate: string | null;
     customFields: Record<string, string>;
 }
 
@@ -95,5 +119,6 @@ export const buildPayload = (leadId: number, values: OpportunityFormValues): Opp
     stageId: Number(values.stageId),
     value: Number(values.value),
     name: values.name,
+    expectedCloseDate: values.expectedCloseDate || null,
     customFields: values.customFieldValues,
 });

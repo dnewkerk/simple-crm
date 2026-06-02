@@ -166,6 +166,7 @@ export const createApp = () => {
         opp.stage = stage;
         opp.value = req.body.value;
         opp.name = req.body.name;
+        opp.expectedCloseDate = req.body.expectedCloseDate ?? null;
         opp.customFields = req.body.customFields || {};
         const likelihood =
             opp.stage.status === "won" ? wonLikelihood : opp.stage.status === "lost" ? lostLikelihood : opp.stage.conversionLikelihood;
@@ -207,6 +208,7 @@ export const createApp = () => {
             opp.value = req.body.value;
         }
         if (req.body.name !== undefined) opp.name = req.body.name;
+        if (req.body.expectedCloseDate !== undefined) opp.expectedCloseDate = req.body.expectedCloseDate;
         if (req.body.customFields) opp.customFields = req.body.customFields;
         const likelihood =
             opp.stage.status === "won" ? wonLikelihood : opp.stage.status === "lost" ? lostLikelihood : opp.stage.conversionLikelihood;

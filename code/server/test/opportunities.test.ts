@@ -80,3 +80,47 @@ describe("PUT /opportunities/:id", () => {
         expect(res.status).toBe(404);
     });
 });
+
+describe("expectedCloseDate", () => {
+    it("persists and returns the close date on create", async () => {
+        const res = await request(app)
+            .post("/opportunities")
+            .send({ leadId, stageId, value: 5000, name: "Dated", expectedCloseDate: "2026-07-15" });
+        expect(res.status).toBe(200);
+        expect(String(res.body.expectedCloseDate)).toContain("2026-07-15");
+
+        const reload = await request(app).get("/opportunities");
+        const found = reload.body.find((o: { id: number }) => o.id === res.body.id);
+        expect(String(found.expectedCloseDate)).toContain("2026-07-15");
+    });
+
+    it("defaults to null when no close date is given (empty state)", async () => {
+        const res = await request(app)
+            .post("/opportunities")
+            .send({ leadId, stageId, value: 5000, name: "No date" });
+        expect(res.status).toBe(200);
+        expect(res.body.expectedCloseDate).toBeNull();
+    });
+
+    it("can set then clear the close date via PUT", async () => {
+        const created = await request(app)
+            .post("/opportunities")
+            .send({ leadId, stageId, value: 5000, name: "Clearable", expectedCloseDate: "2026-08-01" });
+        const cleared = await request(app)
+            .put(`/opportunities/${created.body.id}`)
+            .send({ expectedCloseDate: null });
+        expect(cleared.status).toBe(200);
+        expect(cleared.body.expectedCloseDate).toBeNull();
+    });
+
+    it("leaves the close date unchanged when PUT omits it", async () => {
+        const created = await request(app)
+            .post("/opportunities")
+            .send({ leadId, stageId, value: 5000, name: "Keep date", expectedCloseDate: "2026-09-09" });
+        const updated = await request(app)
+            .put(`/opportunities/${created.body.id}`)
+            .send({ value: 6000 });
+        expect(updated.status).toBe(200);
+        expect(String(updated.body.expectedCloseDate)).toContain("2026-09-09");
+    });
+});

@@ -4,8 +4,26 @@ Running list of things noticed but intentionally not fixed, with the reason.
 Source spec: `instructions.md`. Build order: F2 → F1 → F3 → F4.
 
 ## Status
-- **Feature 2 (Add/Edit Opportunity UI)** — DONE & verified (server vitest+supertest, client vitest unit tests, Playwright E2E: add / validation-error / edit).
-- Feature 1, 3, 4 — not started.
+- **Feature 2 (Add/Edit Opportunity UI)** — DONE & verified. Reusable modal form
+  (add/edit), required Name + positive Value validation, opportunity custom
+  fields editable in the form and displayed on the card. Server
+  vitest+supertest, client vitest unit tests, Playwright E2E all green.
+- **Feature 1 (expectedCloseDate)** — DONE & verified. Nullable `date` column
+  added via TypeORM migration (`synchronize:false`, baseline + add-column
+  migrations run on boot); POST/PUT plumbing; react-datepicker in the form.
+  Server round-trip tests (set/null/clear/omit), client date-helper unit tests,
+  Playwright (empty/create/edit-prefill/clear) all green.
+- Feature 3, 4 — not started.
+
+### Migration test strategy (for the writeup)
+Production/dev runs `synchronize:false` with file-glob migrations executed on
+boot. Tests run against an in-memory SQLite DB built from the entities
+(`synchronize` on only when `SQLITE_DB` is set), because TypeORM loads `.ts`
+migration files through its own require path, which bypasses Vitest's swc
+transform. The real migrations are exercised by the dev-server boot and the
+Playwright run against it (verified: `migrations` table shows both ran and the
+`expectedCloseDate` column exists). A cleaner long-term option is importing the
+migration classes directly into the DataSource so one path works everywhere.
 
 ## Testing approach (for the writeup)
 - Server: `vitest` + `supertest` integration tests hitting the real Express app
@@ -34,6 +52,12 @@ Source spec: `instructions.md`. Build order: F2 → F1 → F3 → F4.
 - **No auth / no validation layer / no CORS/helmet** — no authn/authz on any
   route; inputs largely unvalidated. *Deferred: acceptable for a local take-home;
   noted as the first thing to add for production.*
+- **AddLead renders ALL custom fields, not just lead-scoped ones** — `add-lead.tsx`
+  maps over every custom field definition without filtering by `entity`, so the
+  Add Lead form shows opportunity-scoped inputs (e.g. "Region") and stores them
+  on the lead. Should filter to `entity === "lead"` (mirror of the opp form).
+  *Deferred: pre-existing; spotted while scoping the Playwright selectors. Same
+  bug likely in the lead edit form in `lead-row.tsx`.*
 
 ## Fixed in passing (while touching the code)
 - Null-guards on `POST`/`PUT /opportunities` (bad lead/stage → 400, unknown opp

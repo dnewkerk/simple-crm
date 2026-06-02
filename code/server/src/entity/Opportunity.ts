@@ -22,6 +22,11 @@ export class Opportunity {
     @Column({ nullable: true })
     name: string;
 
+    // Projected close date (YYYY-MM-DD). Nullable, no default — see the
+    // AddExpectedCloseDate migration for the rationale.
+    @Column({ type: "date", nullable: true })
+    expectedCloseDate: string | null;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     @Column("simple-json", { nullable: true })
     customFields: Record<string, any> = {};
