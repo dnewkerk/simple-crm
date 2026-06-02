@@ -30,18 +30,25 @@ const run = async () => {
     await page.getByText("Region", { exact: false }).first().waitFor({ timeout: 5000 })
         .catch(async () => await fail("Opportunity custom field (Region) not rendered in form"));
 
-    // --- Error path: value below the minimum keeps the modal open with a message ---
+    // --- Client validation: an empty name is blocked before any server call ---
+    await page.locator('input[type="number"]').first().fill("5000");
+    await page.getByRole("button", { name: /^Add Opportunity$/ }).click();
+    await page.getByText("Name is required").waitFor({ timeout: 5000 })
+        .catch(async () => await fail("Empty name was not blocked client-side"));
+    if (!(await heading.isVisible())) await fail("Modal closed on name validation (should stay open)");
+    console.log("✓ client validation: empty name blocked inline, modal stayed open");
+
+    // --- Server error path: value below the configured minimum ---
+    await page.getByPlaceholder("Deal name").fill("Below Min Deal");
     await page.locator('input[type="number"]').first().fill("100");
     await page.getByRole("button", { name: /^Add Opportunity$/ }).click();
-    const errorMsg = page.locator("p.text-red-500");
-    await errorMsg.first().waitFor({ timeout: 5000 });
-    const errText = await errorMsg.first().textContent();
-    if (!/at least/i.test(errText || "")) await fail(`Expected validation error, got: ${errText}`);
-    if (!(await heading.isVisible())) await fail("Modal closed on validation error (should stay open)");
-    console.log("✓ error path: inline validation shown, modal stayed open:", JSON.stringify(errText));
+    await page.getByText(/at least/i).first().waitFor({ timeout: 5000 })
+        .catch(async () => await fail("Expected server minimum-value error message"));
+    if (!(await heading.isVisible())) await fail("Modal closed on server validation (should stay open)");
+    console.log("✓ server error path: minimum-value message shown, modal stayed open");
 
-    // --- Happy path: valid value creates the opportunity ---
-    const uniqueName = "E2E Deal " + (errText ? errText.length : 0) + Math.floor(performance.now());
+    // --- Happy path: valid name + value creates the opportunity ---
+    const uniqueName = "E2E Deal " + Math.floor(performance.now());
     await page.getByPlaceholder("Deal name").fill(uniqueName);
     await page.locator('input[type="number"]').first().fill("12345");
     await page.getByRole("button", { name: /^Add Opportunity$/ }).click();

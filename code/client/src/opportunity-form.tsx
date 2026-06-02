@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import Modal from "react-modal";
 import axios from "axios";
 import { CustomField, Opportunity, Stage } from "./types";
-import { opportunityCustomFields, buildInitialValues, buildPayload, OpportunityFormValues } from "./opportunity-form-utils";
+import {
+    opportunityCustomFields,
+    buildInitialValues,
+    buildPayload,
+    validateOpportunity,
+    hasErrors,
+    OpportunityFormValues,
+    OpportunityFieldErrors,
+} from "./opportunity-form-utils";
 
 // react-modal needs the app root for accessibility (aria-hidden the rest of the
 // page). Guarded so it's a no-op in non-DOM environments.
@@ -26,6 +34,7 @@ export const OpportunityForm: React.FC<{
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [error, setError] = useState("");
+    const [fieldErrors, setFieldErrors] = useState<OpportunityFieldErrors>({});
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -35,6 +44,7 @@ export const OpportunityForm: React.FC<{
             setLoading(true);
             setLoadError("");
             setError("");
+            setFieldErrors({});
             try {
                 const [stagesRes, fieldsRes] = await Promise.all([
                     axios.get<Stage[]>("/api/stages"),
@@ -62,6 +72,9 @@ export const OpportunityForm: React.FC<{
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const validationErrors = validateOpportunity(values);
+        setFieldErrors(validationErrors);
+        if (hasErrors(validationErrors)) return;
         setSaving(true);
         setError("");
         const payload = buildPayload(leadId, values);
@@ -111,6 +124,7 @@ export const OpportunityForm: React.FC<{
                             onChange={e => setValues(prev => ({ ...prev, name: e.target.value }))}
                             className={inputClass}
                         />
+                        {fieldErrors.name && <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>}
                     </div>
 
                     <div>
@@ -132,11 +146,13 @@ export const OpportunityForm: React.FC<{
                         <label className="block text-sm font-medium mb-1">Value</label>
                         <input
                             type="number"
+                            min="1"
                             placeholder="Value"
                             value={values.value}
                             onChange={e => setValues(prev => ({ ...prev, value: e.target.value }))}
                             className={inputClass}
                         />
+                        {fieldErrors.value && <p className="text-red-500 text-sm mt-1">{fieldErrors.value}</p>}
                     </div>
 
                     {oppFields.map(field => (

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { opportunityCustomFields, buildInitialValues, buildPayload } from "./opportunity-form-utils";
+import { opportunityCustomFields, buildInitialValues, buildPayload, validateOpportunity, hasErrors } from "./opportunity-form-utils";
 import { CustomField, Opportunity, Stage } from "./types";
 
 const stages: Stage[] = [
@@ -59,6 +59,32 @@ describe("buildInitialValues", () => {
         };
         const v = buildInitialValues(opp, opportunityCustomFields(fields), stages);
         expect(v.customFieldValues).toEqual({ region: "" });
+    });
+});
+
+describe("validateOpportunity", () => {
+    const base = { stageId: 1 as number | "", customFieldValues: {} };
+
+    it("requires a name (no silent Unnamed fallback)", () => {
+        const errors = validateOpportunity({ ...base, name: "   ", value: "5000" });
+        expect(errors.name).toMatch(/required/i);
+        expect(hasErrors(errors)).toBe(true);
+    });
+
+    it("requires a value", () => {
+        const errors = validateOpportunity({ ...base, name: "Deal", value: "" });
+        expect(errors.value).toMatch(/required/i);
+    });
+
+    it("rejects a zero or negative value (the blank -> $0 bug)", () => {
+        expect(validateOpportunity({ ...base, name: "Deal", value: "0" }).value).toMatch(/greater than 0/i);
+        expect(validateOpportunity({ ...base, name: "Deal", value: "-5" }).value).toMatch(/greater than 0/i);
+    });
+
+    it("passes a valid name + value", () => {
+        const errors = validateOpportunity({ ...base, name: "Deal", value: "5000" });
+        expect(errors).toEqual({});
+        expect(hasErrors(errors)).toBe(false);
     });
 });
 

@@ -42,6 +42,31 @@ export interface OpportunityPayload {
     customFields: Record<string, string>;
 }
 
+export interface OpportunityFieldErrors {
+    name?: string;
+    value?: string;
+}
+
+/**
+ * Client-side validation for the opportunity form. Name is required (no silent
+ * "Unnamed" fallback) and Value must be a number greater than zero (so a blank
+ * field can't post a $0 deal). The server still enforces the configured minimum.
+ */
+export const validateOpportunity = (values: OpportunityFormValues): OpportunityFieldErrors => {
+    const errors: OpportunityFieldErrors = {};
+    if (!values.name.trim()) {
+        errors.name = "Name is required";
+    }
+    if (values.value.trim() === "") {
+        errors.value = "Value is required";
+    } else if (!(Number(values.value) > 0)) {
+        errors.value = "Value must be greater than 0";
+    }
+    return errors;
+};
+
+export const hasErrors = (errors: OpportunityFieldErrors): boolean => Object.keys(errors).length > 0;
+
 export const buildPayload = (leadId: number, values: OpportunityFormValues): OpportunityPayload => ({
     leadId,
     stageId: Number(values.stageId),
