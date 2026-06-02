@@ -59,6 +59,14 @@ migration classes directly into the DataSource so one path works everywhere.
   *Deferred: pre-existing; spotted while scoping the Playwright selectors. Same
   bug likely in the lead edit form in `lead-row.tsx`.*
 
+## Minor hardening deferred (reviewer nits, non-blocking)
+- **Server doesn't normalize `expectedCloseDate: ""` to null** (`index.ts` POST
+  `?? null` / PUT `!== undefined`). Latent only — the client's `buildPayload`
+  already coerces `"" -> null`. A `|| null` on the server would be defensive.
+- **Server date round-trip tests use `toContain("YYYY-MM-DD")`** rather than
+  exact equality. They pass and the stored value is clean; exact match would be
+  marginally stronger.
+
 ## Fixed in passing (while touching the code)
 - Null-guards on `POST`/`PUT /opportunities` (bad lead/stage → 400, unknown opp
   → 404) instead of an uncaught 500.
