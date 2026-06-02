@@ -1,0 +1,32 @@
+{
+  "name": "simple-crm",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "runArgs": [
+    "--init"
+  ],
+  "containerEnv": {
+    // Bypass is safe ONLY because this container is the isolation boundary.
+    "IS_SANDBOX": "1"
+  },
+  "remoteEnv": {
+    "ANTHROPIC_MODEL": "claude-opus-4-8"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [
+    5173,
+    3000
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}
