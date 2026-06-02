@@ -8,7 +8,8 @@ import { AppSetting } from "./entity/AppSetting";
 
 export const AppDataSource = new DataSource({
     type: "sqlite",
-    database: "database.sqlite",
+    // Allow tests to point at an isolated in-memory database via SQLITE_DB.
+    database: process.env.SQLITE_DB ?? "database.sqlite",
     synchronize: true,
     logging: false,
     entities: [Lead, CustomField, Stage, Opportunity, AppSetting],

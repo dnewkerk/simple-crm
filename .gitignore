@@ -24,3 +24,6 @@ database.sqlite
 dump.rdb
 coverage/
 .nyc_output/
+
+# Playwright verification screenshots
+code/client/e2e/*.png

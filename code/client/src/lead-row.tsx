@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Lead, CustomField, Opportunity } from "./types";
 import axios from "axios";
+import { OpportunityForm } from "./opportunity-form";
 
 export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -15,6 +16,8 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [oppModalOpen, setOppModalOpen] = useState(false);
+    const [editingOpp, setEditingOpp] = useState<Opportunity | null>(null);
 
     useEffect(() => {
         if (isEditing) {
@@ -65,6 +68,16 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
         fetchOpportunities();
     };
 
+    const openAddOpp = () => {
+        setEditingOpp(null);
+        setOppModalOpen(true);
+    };
+
+    const openEditOpp = (opp: Opportunity) => {
+        setEditingOpp(opp);
+        setOppModalOpen(true);
+    };
+
     const formatCurrency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
     if (isEditing) {
@@ -72,7 +85,7 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
             <tr>
                 <td colSpan={6}>
                     <form onSubmit={handleSubmit} className="space-y-4 p-4 rounded bg-gray-100 w-96">
-                        <h2 className="text-xl font-fold">Edit</h2>
+                        <h2 className="text-xl font-bold">Edit</h2>
                         {error && <p className="text-red-500">{error}</p>}
                         {success && <p className="text-green-500">Lead updated successfully</p>}
                         <input
@@ -145,7 +158,15 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
                 <tr>
                     <td colSpan={5} className="p-4 bg-gray-50">
                         <div className="space-y-4">
-                            <h3 className="font-bold">Opportunities</h3>
+                            <div className="flex items-center gap-3">
+                                <h3 className="font-bold">Opportunities</h3>
+                                <button
+                                    onClick={openAddOpp}
+                                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
+                                >
+                                    Add
+                                </button>
+                            </div>
                             {opportunities.length === 0 ? (
                                 <p className="text-gray-500">No opportunities</p>
                             ) : (
@@ -160,17 +181,32 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
                                                     Expected: {formatCurrency(opp.value * opp.stage.conversionLikelihood)}
                                                 </span>
                                             </div>
-                                            <button
-                                                onClick={() => deleteOpportunity(opp.id)}
-                                                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
-                                            >
-                                                Delete
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => openEditOpp(opp)}
+                                                    className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteOpportunity(opp.id)}
+                                                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
+                        <OpportunityForm
+                            isOpen={oppModalOpen}
+                            onClose={() => setOppModalOpen(false)}
+                            onSaved={fetchOpportunities}
+                            leadId={lead.id}
+                            opportunity={editingOpp}
+                        />
                     </td>
                 </tr>
             )}

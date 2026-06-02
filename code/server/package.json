@@ -10,7 +10,8 @@
         "build": "tsc -p .",
         "typecheck": "tsc -p . --noEmit",
         "typeorm": "typeorm-ts-node-commonjs",
-        "seed": "ts-node --transpile-only src/seed.ts"
+        "seed": "ts-node --transpile-only src/seed.ts",
+        "test": "vitest run"
     },
     "dependencies": {
         "express": "^5.0.0",
@@ -19,10 +20,15 @@
         "typeorm": "^0.3.20"
     },
     "devDependencies": {
+        "@swc/core": "^1.15.40",
         "@types/express": "^5.0.0",
         "@types/node": "^22.10.0",
+        "@types/supertest": "^7.2.0",
         "nodemon": "^3.1.7",
+        "supertest": "^7.2.2",
         "ts-node": "^10.9.2",
-        "typescript": "^5.7.0"
+        "typescript": "^5.7.0",
+        "unplugin-swc": "^1.5.9",
+        "vitest": "^4.1.8"
     }
 }

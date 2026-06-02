@@ -5,11 +5,9 @@ import { Stage } from "./entity/Stage";
 import { Opportunity } from "./entity/Opportunity";
 import { AppSetting } from "./entity/AppSetting";
 import { seedDatabase } from "./seed";
-import * as express from "express";
+import express from "express";
 
-const run = async () => {
-    await AppDataSource.initialize();
-    await seedDatabase();
+export const createApp = () => {
     const app = express();
     app.use(express.json());
 
@@ -156,9 +154,16 @@ const run = async () => {
             return;
         }
 
+        const lead = await AppDataSource.manager.getRepository(Lead).findOne({ where: { id: req.body.leadId } });
+        const stage = await AppDataSource.manager.getRepository(Stage).findOne({ where: { id: req.body.stageId } });
+        if (!lead || !stage) {
+            res.status(400).json({ error: "Invalid lead or stage" });
+            return;
+        }
+
         const opp = new Opportunity();
-        opp.lead = await AppDataSource.manager.getRepository(Lead).findOne({ where: { id: req.body.leadId } });
-        opp.stage = await AppDataSource.manager.getRepository(Stage).findOne({ where: { id: req.body.stageId } });
+        opp.lead = lead;
+        opp.stage = stage;
         opp.value = req.body.value;
         opp.name = req.body.name;
         opp.customFields = req.body.customFields || {};
@@ -180,9 +185,20 @@ const run = async () => {
         const lostLikelihood = parseFloat(settings.find(s => s.key === "lostStageLikelihood")?.value ?? "0");
 
         const opp = await AppDataSource.manager.getRepository(Opportunity).findOne({ where: { id: parseInt(req.params.id) } });
+        if (!opp) {
+            res.status(404).json({ error: "Opportunity not found" });
+            return;
+        }
         const oldExpectedValue = opp.expectedValue || 0;
         const oldStage = opp.stage;
-        if (req.body.stageId) opp.stage = await AppDataSource.manager.getRepository(Stage).findOne({ where: { id: req.body.stageId } });
+        if (req.body.stageId) {
+            const nextStage = await AppDataSource.manager.getRepository(Stage).findOne({ where: { id: req.body.stageId } });
+            if (!nextStage) {
+                res.status(400).json({ error: "Invalid stage" });
+                return;
+            }
+            opp.stage = nextStage;
+        }
         if (req.body.value !== undefined) {
             if (req.body.value < minValue) {
                 res.status(400).json({ error: `Value must be at least ${minValue}` });
@@ -247,9 +263,18 @@ const run = async () => {
         res.json({ totalValue, expectedValue, byStage });
     });
 
+    return app;
+};
+
+const run = async () => {
+    await AppDataSource.initialize();
+    await seedDatabase();
+    const app = createApp();
     app.listen(3000, () => {
         console.log("Server is running on http://localhost:3000");
     });
 };
 
-run();
+if (require.main === module) {
+    run();
+}
