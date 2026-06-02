@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { opportunityCustomFields, buildInitialValues, buildPayload, validateOpportunity, hasErrors } from "./opportunity-form-utils";
+import {
+    opportunityCustomFields,
+    buildInitialValues,
+    buildPayload,
+    validateOpportunity,
+    hasErrors,
+    displayedCustomFields,
+} from "./opportunity-form-utils";
 import { CustomField, Opportunity, Stage } from "./types";
 
 const stages: Stage[] = [
@@ -85,6 +92,36 @@ describe("validateOpportunity", () => {
         const errors = validateOpportunity({ ...base, name: "Deal", value: "5000" });
         expect(errors).toEqual({});
         expect(hasErrors(errors)).toBe(false);
+    });
+});
+
+describe("displayedCustomFields", () => {
+    const oppFields = opportunityCustomFields([
+        ...fields,
+        { id: 3, name: "headcount", label: "Headcount", entity: "opportunity", type: "number" },
+    ]);
+    const makeOpp = (customFields: Record<string, unknown>): Opportunity => ({
+        id: 1,
+        lead: { id: 1, firstName: "A", lastName: "B", age: 30, phoneNumber: "x" },
+        stage: stages[0],
+        value: 5000,
+        customFields: customFields as Record<string, string>,
+    });
+
+    it("returns label/value pairs for filled opportunity fields, coercing to string", () => {
+        expect(displayedCustomFields(makeOpp({ region: "NA", headcount: 120 }), oppFields)).toEqual([
+            { name: "region", label: "Region", value: "NA" },
+            { name: "headcount", label: "Headcount", value: "120" },
+        ]);
+    });
+
+    it("omits fields with empty or missing values (empty state)", () => {
+        expect(displayedCustomFields(makeOpp({ region: "", headcount: undefined }), oppFields)).toEqual([]);
+        expect(displayedCustomFields(makeOpp({}), oppFields)).toEqual([]);
+    });
+
+    it("returns nothing when no opportunity fields are defined", () => {
+        expect(displayedCustomFields(makeOpp({ region: "NA" }), [])).toEqual([]);
     });
 });
 

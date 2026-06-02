@@ -42,6 +42,29 @@ export interface OpportunityPayload {
     customFields: Record<string, string>;
 }
 
+export interface DisplayedCustomField {
+    name: string;
+    label: string;
+    value: string;
+}
+
+/**
+ * Opportunity-scoped custom fields that have a value on this opportunity, for
+ * read-only display on the card. Fields the opp hasn't filled in are omitted so
+ * cards don't show empty noise.
+ */
+export const displayedCustomFields = (opp: Opportunity, oppFields: CustomField[]): DisplayedCustomField[] => {
+    const result: DisplayedCustomField[] = [];
+    for (const field of oppFields) {
+        const raw = opp.customFields?.[field.name];
+        const value = raw === undefined || raw === null ? "" : String(raw);
+        if (value.trim() !== "") {
+            result.push({ name: field.name, label: field.label, value });
+        }
+    }
+    return result;
+};
+
 export interface OpportunityFieldErrors {
     name?: string;
     value?: string;

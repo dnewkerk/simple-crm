@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Lead, CustomField, Opportunity } from "./types";
 import axios from "axios";
 import { OpportunityForm } from "./opportunity-form";
+import { opportunityCustomFields, displayedCustomFields } from "./opportunity-form-utils";
 
 export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -18,6 +19,7 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
     const [loading, setLoading] = useState(false);
     const [oppModalOpen, setOppModalOpen] = useState(false);
     const [editingOpp, setEditingOpp] = useState<Opportunity | null>(null);
+    const [oppFields, setOppFields] = useState<CustomField[]>([]);
 
     useEffect(() => {
         if (isEditing) {
@@ -28,12 +30,18 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
     useEffect(() => {
         if (showOpps) {
             fetchOpportunities();
+            fetchOppFields();
         }
     }, [showOpps]);
 
     const fetchCustomFields = async () => {
         const result = await axios.get("/api/custom-fields");
         setCustomFields(result.data);
+    };
+
+    const fetchOppFields = async () => {
+        const result = await axios.get<CustomField[]>("/api/custom-fields");
+        setOppFields(opportunityCustomFields(result.data));
     };
 
     const fetchOpportunities = async () => {
@@ -180,6 +188,11 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     Expected: {formatCurrency(opp.value * opp.stage.conversionLikelihood)}
                                                 </span>
+                                                {displayedCustomFields(opp, oppFields).map(field => (
+                                                    <span key={field.name} className="text-sm text-gray-500 ml-2">
+                                                        {field.label}: {field.value}
+                                                    </span>
+                                                ))}
                                             </div>
                                             <div className="flex gap-2">
                                                 <button

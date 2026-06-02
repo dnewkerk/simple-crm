@@ -23,6 +23,10 @@ const run = async () => {
     await heading.waitFor({ timeout: 5000 }).catch(() => null);
     if (!(await heading.isVisible())) await fail("Add Opportunity modal did not open");
 
+    // Scope field interactions to the modal — the Add Lead form on the same page
+    // also renders custom-field inputs (e.g. a "Region" input).
+    const modal = page.locator("div.bg-white.shadow-lg");
+
     // Wait for the async form load (stages + custom fields) to finish.
     await page.getByPlaceholder("Deal name").waitFor({ timeout: 5000 });
 
@@ -31,7 +35,7 @@ const run = async () => {
         .catch(async () => await fail("Opportunity custom field (Region) not rendered in form"));
 
     // --- Client validation: an empty name is blocked before any server call ---
-    await page.locator('input[type="number"]').first().fill("5000");
+    await modal.locator('input[type="number"]').first().fill("5000");
     await page.getByRole("button", { name: /^Add Opportunity$/ }).click();
     await page.getByText("Name is required").waitFor({ timeout: 5000 })
         .catch(async () => await fail("Empty name was not blocked client-side"));
@@ -40,23 +44,31 @@ const run = async () => {
 
     // --- Server error path: value below the configured minimum ---
     await page.getByPlaceholder("Deal name").fill("Below Min Deal");
-    await page.locator('input[type="number"]').first().fill("100");
+    await modal.locator('input[type="number"]').first().fill("100");
     await page.getByRole("button", { name: /^Add Opportunity$/ }).click();
     await page.getByText(/at least/i).first().waitFor({ timeout: 5000 })
         .catch(async () => await fail("Expected server minimum-value error message"));
     if (!(await heading.isVisible())) await fail("Modal closed on server validation (should stay open)");
     console.log("✓ server error path: minimum-value message shown, modal stayed open");
 
-    // --- Happy path: valid name + value creates the opportunity ---
+    // --- Happy path: valid name + value (+ custom field) creates the opportunity ---
     const uniqueName = "E2E Deal " + Math.floor(performance.now());
+    const region = "APAC-" + Math.floor(performance.now());
     await page.getByPlaceholder("Deal name").fill(uniqueName);
-    await page.locator('input[type="number"]').first().fill("12345");
+    await modal.locator('input[type="number"]').first().fill("12345");
+    await modal.getByPlaceholder("Region").fill(region);
     await page.getByRole("button", { name: /^Add Opportunity$/ }).click();
 
     // Modal closes and the new opp appears in the list.
     await heading.waitFor({ state: "hidden", timeout: 5000 }).catch(() => null);
-    await page.getByText(uniqueName).first().waitFor({ timeout: 5000 });
+    const newCard = page.locator("div.bg-white.border.rounded", { hasText: uniqueName });
+    await newCard.waitFor({ timeout: 5000 });
     console.log("✓ happy path: created opportunity", JSON.stringify(uniqueName));
+
+    // Custom field value renders on the card after Expected.
+    await page.getByText(`Region: ${region}`).first().waitFor({ timeout: 5000 })
+        .catch(async () => await fail("Opportunity custom field value not displayed on the card"));
+    console.log("✓ custom field displayed on card:", JSON.stringify(`Region: ${region}`));
 
     // --- Edit button opens the prefilled modal ---
     const card = page.locator("div.bg-white.border.rounded", { hasText: uniqueName });
