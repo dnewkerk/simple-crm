@@ -13,7 +13,22 @@ Source spec: `instructions.md`. Build order: F2 → F1 → F3 → F4.
   migrations run on boot); POST/PUT plumbing; react-datepicker in the form.
   Server round-trip tests (set/null/clear/omit), client date-helper unit tests,
   Playwright (empty/create/edit-prefill/clear) all green.
-- Feature 3, 4 — not started.
+- **Feature 3 (Monthly forecast Kanban)** — DONE & verified. `GET /opportunities/open`
+  (pending stages); Forecast nav page with 6 month columns + Past/No Date Set +
+  Future; spec'd CSS (275px cols, count badge, Total Expected Value = sum of
+  `value`); cards sorted by close date; seed spreads close dates incl. guaranteed
+  past + future open opps. Pure `buildForecast` unit-tested (empty/boundaries/
+  sorting/rollover), server open-filter test, Playwright board check, all green.
+- Feature 4 — not started.
+
+## Feature 3 decisions (for the writeup)
+- "Past" uses calendar-month boundaries (close date before the 1st of the current
+  month), consistent with monthly bucketing — a date earlier *this* month still
+  sits in the current-month column.
+- Column total is labeled "Total Expected Value" but sums each opp's raw `value`
+  (per the spec's explicit instruction); cards show the stored `expectedValue`.
+  Flagging the naming mismatch — would confirm intent with the PM.
+- Card click-to-detail was dropped earlier (no router); all values render inline.
 
 ### Migration test strategy (for the writeup)
 Production/dev runs `synchronize:false` with file-glob migrations executed on

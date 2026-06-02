@@ -143,6 +143,12 @@ export const createApp = () => {
         res.json(opportunities);
     });
 
+    // Open opportunities only (stage status "pending") — used by the forecast.
+    app.get("/opportunities/open", async (req, res) => {
+        const opportunities = await AppDataSource.manager.getRepository(Opportunity).find();
+        res.json(opportunities.filter(opp => opp.stage?.status === "pending"));
+    });
+
     app.post("/opportunities", async (req, res) => {
         const settings = await AppDataSource.manager.getRepository(AppSetting).find();
         const minValue = parseFloat(settings.find(s => s.key === "minimumOpportunityValue")?.value ?? "0");

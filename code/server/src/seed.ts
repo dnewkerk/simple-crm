@@ -79,6 +79,24 @@ export async function seedDatabase({ clearFirst = false }: { clearFirst?: boolea
 
     console.log(`✓ Created ${leads.length} leads`);
 
+    // Spread close dates across the forecast window (relative to seed time) so
+    // the monthly forecast has data in every kind of column. `null` lands in
+    // "No Date Set"; a negative offset lands in "Past"; > 6 months in "Future".
+    const today = new Date();
+    const monthsFromNow = (n: number, day = 15): string => {
+        const d = new Date(today.getFullYear(), today.getMonth() + n, day);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    const closeDateSpread: (string | null)[] = [
+        null,
+        monthsFromNow(-2),
+        monthsFromNow(0),
+        monthsFromNow(1),
+        monthsFromNow(2),
+        monthsFromNow(4),
+        monthsFromNow(8),
+    ];
+
     let oppCount = 0;
     for (const lead of leads) {
         const numOpps = Math.floor(Math.random() * 3) + 1;
@@ -88,6 +106,7 @@ export async function seedDatabase({ clearFirst = false }: { clearFirst?: boolea
             opp.stage = stages[Math.floor(Math.random() * stages.length)];
             opp.value = Math.floor(Math.random() * 95000) + 5000;
             opp.name = dealNames[Math.floor(Math.random() * dealNames.length)];
+            opp.expectedCloseDate = closeDateSpread[oppCount % closeDateSpread.length];
             const region = regionValues[Math.floor(Math.random() * regionValues.length)];
             const rawHeadcount = Math.floor(Math.random() * 500) + 10;
             opp.customFields = {
@@ -100,6 +119,26 @@ export async function seedDatabase({ clearFirst = false }: { clearFirst?: boolea
             await connection.manager.getRepository(Opportunity).save(opp);
             oppCount++;
         }
+    }
+
+    // Guarantee at least one open (pending) opportunity in the Past and Future
+    // columns regardless of the random stage assignment above.
+    const pendingStage = stages.find(s => s.status === "pending")!;
+    const guaranteed = [
+        { name: "Past-Due Renewal", expectedCloseDate: monthsFromNow(-2) },
+        { name: "Long-Horizon Expansion", expectedCloseDate: monthsFromNow(8) },
+    ];
+    for (const g of guaranteed) {
+        const opp = new Opportunity();
+        opp.lead = leads[0];
+        opp.stage = pendingStage;
+        opp.value = 50000;
+        opp.name = g.name;
+        opp.expectedCloseDate = g.expectedCloseDate;
+        opp.customFields = { region: "NA" };
+        opp.expectedValue = opp.value * pendingStage.conversionLikelihood;
+        await connection.manager.getRepository(Opportunity).save(opp);
+        oppCount++;
     }
 
     console.log(`✓ Created ${oppCount} opportunities`);

@@ -5,6 +5,7 @@ import { createApp } from "../src/index";
 import { AppSetting } from "../src/entity/AppSetting";
 import { Lead } from "../src/entity/Lead";
 import { Stage } from "../src/entity/Stage";
+import { Opportunity } from "../src/entity/Opportunity";
 
 let app: ReturnType<typeof createApp>;
 let leadId: number;
@@ -78,6 +79,34 @@ describe("PUT /opportunities/:id", () => {
     it("returns 404 for an unknown opportunity (error path)", async () => {
         const res = await request(app).put("/opportunities/99999").send({ value: 5000 });
         expect(res.status).toBe(404);
+    });
+});
+
+describe("GET /opportunities/open", () => {
+    it("returns only opportunities on a pending stage", async () => {
+        const m = AppDataSource.manager;
+        const wonStage = await m.getRepository(Stage).save(
+            Object.assign(new Stage(), { name: "Won", status: "won", conversionLikelihood: 1, order: 99, expectedValue: 0 }),
+        );
+        // One open (pending) and one closed (won) opportunity.
+        const openRes = await request(app).post("/opportunities").send({ leadId, stageId, value: 5000, name: "Open one" });
+        const wonOpp = await m.getRepository(Opportunity).save(
+            Object.assign(new Opportunity(), {
+                lead: { id: leadId },
+                stage: { id: wonStage.id },
+                value: 7000,
+                expectedValue: 7000,
+                name: "Closed one",
+                customFields: {},
+            }),
+        );
+
+        const res = await request(app).get("/opportunities/open");
+        expect(res.status).toBe(200);
+        const ids = res.body.map((o: { id: number }) => o.id);
+        expect(ids).toContain(openRes.body.id);
+        expect(ids).not.toContain(wonOpp.id);
+        expect(res.body.every((o: { stage: { status: string } }) => o.stage.status === "pending")).toBe(true);
     });
 });
 
