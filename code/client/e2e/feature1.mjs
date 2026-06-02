@@ -42,6 +42,12 @@ const run = async () => {
     await card.waitFor({ timeout: 5000 });
     console.log("✓ happy path: created opportunity with a close date", JSON.stringify(uniqueName));
 
+    // The card shows the close date after Expected.
+    if (!(await card.getByText("Expected Close: 2026-07-20").isVisible())) {
+        await fail("Card did not display 'Expected Close: 2026-07-20'");
+    }
+    console.log("✓ display: card shows 'Expected Close: 2026-07-20'");
+
     // Persistence round-trip: reopen edit and confirm the date prefills.
     await card.getByRole("button", { name: /^Edit$/ }).click();
     await page.getByRole("heading", { name: "Edit Opportunity" }).waitFor({ timeout: 5000 });
@@ -54,6 +60,11 @@ const run = async () => {
     if ((await modal.getByPlaceholder("No close date set").inputValue()) !== "") await fail("Clear button did not empty the date field");
     await page.getByRole("button", { name: /^Save Changes$/ }).click();
     await page.getByRole("heading", { name: "Edit Opportunity" }).waitFor({ state: "hidden", timeout: 5000 }).catch(() => null);
+
+    // Empty state on the card: a cleared date shows N/A.
+    await card.getByText("Expected Close: N/A").waitFor({ timeout: 5000 })
+        .catch(async () => await fail("Card did not show 'Expected Close: N/A' after clearing"));
+    console.log("✓ display empty state: card shows 'Expected Close: N/A'");
 
     await card.getByRole("button", { name: /^Edit$/ }).click();
     await page.getByRole("heading", { name: "Edit Opportunity" }).waitFor({ timeout: 5000 });

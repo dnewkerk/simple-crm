@@ -12,6 +12,9 @@ export interface OpportunityFormValues {
 export const normalizeDateString = (value: string | null | undefined): string =>
     value ? String(value).slice(0, 10) : "";
 
+/** Close date for read-only display, or "N/A" when the opportunity has none. */
+export const closeDateDisplay = (opp: Opportunity): string => normalizeDateString(opp.expectedCloseDate) || "N/A";
+
 /** Format a Date as a local "YYYY-MM-DD" string (no timezone shift). */
 export const formatDateValue = (date: Date | null): string => {
     if (!date) return "";

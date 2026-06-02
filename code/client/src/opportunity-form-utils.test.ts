@@ -6,6 +6,7 @@ import {
     validateOpportunity,
     hasErrors,
     displayedCustomFields,
+    closeDateDisplay,
     normalizeDateString,
     formatDateValue,
     parseDateValue,
@@ -164,6 +165,27 @@ describe("buildPayload", () => {
     it("sends null when no close date is set (empty state)", () => {
         const payload = buildPayload(7, { stageId: 2, value: "5000", name: "Deal", expectedCloseDate: "", customFieldValues: {} });
         expect(payload.expectedCloseDate).toBeNull();
+    });
+});
+
+describe("closeDateDisplay", () => {
+    const makeOpp = (expectedCloseDate: string | null | undefined): Opportunity => ({
+        id: 1,
+        lead: { id: 1, firstName: "A", lastName: "B", age: 30, phoneNumber: "x" },
+        stage: stages[0],
+        value: 5000,
+        expectedCloseDate,
+        customFields: {},
+    });
+
+    it("shows the date when set", () => {
+        expect(closeDateDisplay(makeOpp("2026-07-20"))).toBe("2026-07-20");
+        expect(closeDateDisplay(makeOpp("2026-07-20T00:00:00.000Z"))).toBe("2026-07-20");
+    });
+
+    it("shows N/A when the close date is not set (empty state)", () => {
+        expect(closeDateDisplay(makeOpp(null))).toBe("N/A");
+        expect(closeDateDisplay(makeOpp(undefined))).toBe("N/A");
     });
 });
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Lead, CustomField, Opportunity } from "./types";
 import axios from "axios";
 import { OpportunityForm } from "./opportunity-form";
-import { opportunityCustomFields, displayedCustomFields } from "./opportunity-form-utils";
+import { opportunityCustomFields, displayedCustomFields, closeDateDisplay } from "./opportunity-form-utils";
 
 export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -187,6 +187,9 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
                                                 <span className="text-sm text-gray-600 ml-2">{formatCurrency(opp.value)}</span>
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     Expected: {formatCurrency(opp.value * opp.stage.conversionLikelihood)}
+                                                </span>
+                                                <span className="text-sm text-gray-500 ml-2">
+                                                    Expected Close: {closeDateDisplay(opp)}
                                                 </span>
                                                 {displayedCustomFields(opp, oppFields).map(field => (
                                                     <span key={field.name} className="text-sm text-gray-500 ml-2">
