@@ -1,20 +1,47 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { Opportunity } from "./types";
+import { CustomField, Opportunity } from "./types";
 import { buildForecast, ForecastColumn } from "./forecast";
-import { normalizeDateString } from "./opportunity-form-utils";
+import { normalizeDateString, opportunityCustomFields, displayedCustomFields } from "./opportunity-form-utils";
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
-const OpportunityCard: React.FC<{ opp: Opportunity }> = ({ opp }) => (
-    <div className="bg-white border rounded p-2 mb-2">
-        {opp.name && <p className="font-medium text-sm">{opp.name}</p>}
-        <p className="text-xs text-gray-600">Close: {normalizeDateString(opp.expectedCloseDate) || "—"}</p>
-        <p className="text-xs text-gray-600">Expected: {formatCurrency(opp.expectedValue ?? 0)}</p>
-    </div>
-);
+const OpportunityCard: React.FC<{ opp: Opportunity; oppFields: CustomField[] }> = ({ opp, oppFields }) => {
+    const [showMore, setShowMore] = useState(false);
+    const extra = displayedCustomFields(opp, oppFields);
+    return (
+        <div className="bg-white border rounded p-2 mb-2">
+            {opp.name && <p className="font-medium text-sm">{opp.name}</p>}
+            <p className="text-xs text-gray-600">Stage: {opp.stage.name}</p>
+            <p className="text-xs text-gray-600">Close: {normalizeDateString(opp.expectedCloseDate) || "—"}</p>
+            <p className="text-xs text-gray-600">Expected: {formatCurrency(opp.expectedValue ?? 0)}</p>
+            {extra.length > 0 && (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => setShowMore(v => !v)}
+                        className="text-xs text-blue-500 hover:text-blue-600 mt-1"
+                        aria-expanded={showMore}
+                    >
+                        <span className="inline-block mr-1">{showMore ? "▾" : "▸"}</span>
+                        {showMore ? "Less" : "More"}
+                    </button>
+                    {showMore && (
+                        <div className="mt-1 space-y-0.5">
+                            {extra.map(field => (
+                                <p key={field.name} className="text-xs text-gray-500">
+                                    {field.label}: {field.value}
+                                </p>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+};
 
-const ForecastColumnView: React.FC<{ column: ForecastColumn }> = ({ column }) => (
+const ForecastColumnView: React.FC<{ column: ForecastColumn; oppFields: CustomField[] }> = ({ column, oppFields }) => (
     <div className="w-[275px] shrink-0 mx-2 p-2 bg-gray-100 rounded self-start max-h-[calc(100vh-12rem)] overflow-y-auto">
         <div className="flex justify-between items-baseline">
             <h3 className="font-bold">{column.title}</h3>
@@ -31,7 +58,7 @@ const ForecastColumnView: React.FC<{ column: ForecastColumn }> = ({ column }) =>
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-2 mb-1">{group.heading}</p>
                         )}
                         {group.opportunities.map(opp => (
-                            <OpportunityCard key={opp.id} opp={opp} />
+                            <OpportunityCard key={opp.id} opp={opp} oppFields={oppFields} />
                         ))}
                     </div>
                 ),
@@ -42,6 +69,7 @@ const ForecastColumnView: React.FC<{ column: ForecastColumn }> = ({ column }) =>
 
 export const Forecast: React.FC = () => {
     const [opps, setOpps] = useState<Opportunity[] | null>(null);
+    const [oppFields, setOppFields] = useState<CustomField[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -53,8 +81,12 @@ export const Forecast: React.FC = () => {
         setLoading(true);
         setError("");
         try {
-            const res = await axios.get<Opportunity[]>("/api/opportunities/open");
-            setOpps(res.data);
+            const [openRes, fieldsRes] = await Promise.all([
+                axios.get<Opportunity[]>("/api/opportunities/open"),
+                axios.get<CustomField[]>("/api/custom-fields"),
+            ]);
+            setOpps(openRes.data);
+            setOppFields(opportunityCustomFields(fieldsRes.data));
         } catch {
             setError("Could not load the forecast. Please try again.");
         } finally {
@@ -89,7 +121,7 @@ export const Forecast: React.FC = () => {
             )}
             <div className="flex overflow-x-auto pb-4 items-start">
                 {columns.map(column => (
-                    <ForecastColumnView key={column.key} column={column} />
+                    <ForecastColumnView key={column.key} column={column} oppFields={oppFields} />
                 ))}
             </div>
         </div>

@@ -51,6 +51,23 @@ const run = async () => {
         .catch(async () => await fail("Past-dated opp not bucketed into the Past / No Date Set column"));
     console.log("✓ past-dated opp bucketed under the Past sub-group");
 
+    // Cards show Stage, and the "More" toggle reveals/hides custom fields.
+    const futureCard = futureCol.locator("div.bg-white.border").filter({ hasText: "Long-Horizon Expansion" });
+    if (!(await futureCard.getByText(/^Stage:/).first().isVisible())) await fail("Card does not show Stage");
+    console.log("✓ card shows Stage");
+
+    const moreBtn = futureCard.getByRole("button", { name: /More/ });
+    await moreBtn.waitFor({ timeout: 5000 }).catch(async () => await fail("More toggle not present on a card with custom fields"));
+    await moreBtn.click();
+    await futureCard.getByText("Region: NA").first().waitFor({ timeout: 5000 })
+        .catch(async () => await fail("More toggle did not reveal custom field (Region)"));
+    console.log("✓ More toggle reveals custom fields (Region)");
+
+    // Toggle collapses again.
+    await futureCard.getByRole("button", { name: /Less/ }).click();
+    if (await futureCard.getByText("Region: NA").first().isVisible()) await fail("Less toggle did not hide custom fields");
+    console.log("✓ toggle collapses custom fields again");
+
     await page.screenshot({ path: shot("feature3-success"), fullPage: true });
     await browser.close();
     console.log("ALL PLAYWRIGHT CHECKS PASSED");
