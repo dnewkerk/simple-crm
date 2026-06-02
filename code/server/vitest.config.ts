@@ -9,7 +9,7 @@ export default defineConfig({
         globals: true,
         environment: "node",
         include: ["test/**/*.test.ts"],
-        env: { SQLITE_DB: ":memory:" },
+        env: { SQLITE_DB: ":memory:", NODE_ENV: "test" },
     },
     plugins: [
         swc.vite({
