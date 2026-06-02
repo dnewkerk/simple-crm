@@ -12,7 +12,7 @@ const run = async () => {
     };
 
     await page.goto(BASE, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: /Show Opps/i }).first().click();
+    await page.getByTitle("Show Opportunities").first().click();
     await page.getByRole("heading", { name: "Opportunities" }).first().waitFor();
 
     // Open the Add modal.

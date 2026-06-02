@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import Modal from "react-modal";
 import { Lead, CustomField, Opportunity } from "./types";
 import axios from "axios";
 import { OpportunityForm } from "./opportunity-form";
 import { opportunityCustomFields, displayedCustomFields, closeDateDisplay } from "./opportunity-form-utils";
+import { PencilIcon, EyeIcon, EyeOffIcon } from "./icons";
 
 export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -88,79 +90,37 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
 
     const formatCurrency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
-    if (isEditing) {
-        return (
-            <tr>
-                <td colSpan={6}>
-                    <form onSubmit={handleSubmit} className="space-y-4 p-4 rounded bg-gray-100 w-96">
-                        <h2 className="text-xl font-bold">Edit</h2>
-                        {error && <p className="text-red-500">{error}</p>}
-                        {success && <p className="text-green-500">Lead updated successfully</p>}
-                        <input
-                            type="text"
-                            placeholder="First Name"
-                            value={firstName}
-                            onChange={e => setFirstName(e.target.value)}
-                            className="block w-full p-2 border border-gray-300 rounded"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Last Name"
-                            value={lastName}
-                            onChange={e => setLastName(e.target.value)}
-                            className="block w-full p-2 border border-gray-300 rounded"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Age"
-                            value={age}
-                            onChange={e => setAge(e.target.value)}
-                            className="block w-full p-2 border border-gray-300 rounded"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Phone Number"
-                            value={phoneNumber}
-                            onChange={e => setPhoneNumber(e.target.value)}
-                            className="block w-full p-2 border border-gray-300 rounded"
-                        />
-                        {customFields.map(field => (
-                            <input
-                                key={field.id}
-                                type="text"
-                                placeholder={field.label}
-                                value={customFieldValues[field.name] || ""}
-                                onChange={e =>
-                                    setCustomFieldValues({
-                                        ...customFieldValues,
-                                        [field.name]: e.target.value,
-                                    })
-                                }
-                                className="block w-full p-2 border border-gray-300 rounded"
-                            />
-                        ))}
-                        <button type="submit" disabled={loading} className="block w-full p-2 bg-blue-500 text-white rounded">
-                            Update Lead
-                        </button>
-                    </form>
-                </td>
-            </tr>
-        );
-    }
+    const openEdit = () => {
+        setError("");
+        setSuccess(false);
+        setIsEditing(true);
+    };
 
     return (
         <>
             <tr key={lead.id}>
-                <td>
-                    <button onClick={() => setIsEditing(true)} className="mr-2">
-                        Edit
+                <td className="border border-gray-200 p-2">
+                    <button
+                        onClick={openEdit}
+                        title="Edit Lead"
+                        aria-label="Edit Lead"
+                        className="text-blue-500 hover:text-blue-600 mr-3 align-middle"
+                    >
+                        <PencilIcon className="w-5 h-5" />
                     </button>
-                    <button onClick={() => setShowOpps(!showOpps)}>{showOpps ? "Hide" : "Show"} Opps</button>
+                    <button
+                        onClick={() => setShowOpps(!showOpps)}
+                        title={showOpps ? "Hide Opportunities" : "Show Opportunities"}
+                        aria-label={showOpps ? "Hide Opportunities" : "Show Opportunities"}
+                        className="text-gray-600 hover:text-gray-800 align-middle"
+                    >
+                        {showOpps ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                    </button>
                 </td>
-                <td>{firstName}</td>
-                <td>{lastName}</td>
-                <td>{age}</td>
-                <td>{phoneNumber}</td>
+                <td className="border border-gray-200 p-2">{firstName}</td>
+                <td className="border border-gray-200 p-2">{lastName}</td>
+                <td className="border border-gray-200 p-2">{age}</td>
+                <td className="border border-gray-200 p-2">{phoneNumber}</td>
             </tr>
             {showOpps && (
                 <tr>
@@ -226,6 +186,79 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
                     </td>
                 </tr>
             )}
+
+            <Modal
+                isOpen={isEditing}
+                onRequestClose={() => setIsEditing(false)}
+                contentLabel="Edit lead"
+                className="bg-white p-6 rounded shadow-lg w-96 max-w-[90vw] mx-auto mt-24 outline-none"
+                overlayClassName="fixed inset-0 bg-black/40 flex items-start justify-center p-4 z-50"
+            >
+                <h2 className="text-xl font-bold mb-4">Edit Lead</h2>
+                {error && <p className="text-red-500 mb-2">{error}</p>}
+                {success && <p className="text-green-500 mb-2">Lead updated successfully</p>}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                        type="text"
+                        placeholder="First Name"
+                        value={firstName}
+                        onChange={e => setFirstName(e.target.value)}
+                        className="block w-full p-2 border border-gray-300 rounded"
+                    />
+                    <input
+                        type="text"
+                        placeholder="Last Name"
+                        value={lastName}
+                        onChange={e => setLastName(e.target.value)}
+                        className="block w-full p-2 border border-gray-300 rounded"
+                    />
+                    <input
+                        type="text"
+                        placeholder="Age"
+                        value={age}
+                        onChange={e => setAge(e.target.value)}
+                        className="block w-full p-2 border border-gray-300 rounded"
+                    />
+                    <input
+                        type="text"
+                        placeholder="Phone Number"
+                        value={phoneNumber}
+                        onChange={e => setPhoneNumber(e.target.value)}
+                        className="block w-full p-2 border border-gray-300 rounded"
+                    />
+                    {customFields.map(field => (
+                        <input
+                            key={field.id}
+                            type="text"
+                            placeholder={field.label}
+                            value={customFieldValues[field.name] || ""}
+                            onChange={e =>
+                                setCustomFieldValues({
+                                    ...customFieldValues,
+                                    [field.name]: e.target.value,
+                                })
+                            }
+                            className="block w-full p-2 border border-gray-300 rounded"
+                        />
+                    ))}
+                    <div className="flex gap-2">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-300"
+                        >
+                            {loading ? "Saving…" : "Update Lead"}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsEditing(false)}
+                            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </>
     );
 };

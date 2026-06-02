@@ -14,7 +14,7 @@ const run = async () => {
     await page.goto(BASE, { waitUntil: "networkidle" });
 
     // Expand the first lead's opportunities.
-    await page.getByRole("button", { name: /Show Opps/i }).first().click();
+    await page.getByTitle("Show Opportunities").first().click();
     await page.getByRole("heading", { name: "Opportunities" }).first().waitFor();
 
     // --- Add button opens the modal with core + custom fields ---

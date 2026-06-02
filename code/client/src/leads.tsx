@@ -17,15 +17,15 @@ export const Leads: React.FC<{ refreshTrigger?: number }> = ({ refreshTrigger = 
 
     return (
         <div className="w-full">
-            <h2 className="text-xl font-fold">Leads</h2>
-            <table className="table-auto w-full">
+            <h2 className="text-xl font-bold mb-2">Leads</h2>
+            <table className="table-auto w-full border-collapse border border-gray-200">
                 <thead>
-                    <tr>
-                        <th></th>
-                        <th>First Name</th>
-                        <th>Last Name</th>
-                        <th>Age</th>
-                        <th>Phone Number</th>
+                    <tr className="bg-gray-100">
+                        <th className="border border-gray-200 p-2 text-left">Actions</th>
+                        <th className="border border-gray-200 p-2 text-left">First Name</th>
+                        <th className="border border-gray-200 p-2 text-left">Last Name</th>
+                        <th className="border border-gray-200 p-2 text-left">Age</th>
+                        <th className="border border-gray-200 p-2 text-left">Phone Number</th>
                     </tr>
                 </thead>
                 <tbody>
