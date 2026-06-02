@@ -1,4 +1,4 @@
-import { Opportunity } from "./types";
+import { CustomField, Opportunity } from "./types";
 import { parseDateValue, normalizeDateString } from "./opportunity-form-utils";
 
 export const MONTH_NAMES = [
@@ -110,4 +110,45 @@ export const buildForecast = (opps: Opportunity[], today: Date): ForecastColumn[
     });
 
     return columns;
+};
+
+/**
+ * Split opportunities into sub-groups by the value of a custom field. Distinct
+ * values become headings (sorted), each group sorted by close date. Opps with
+ * no value for the field collect in a "No {label}" group rendered last.
+ */
+export const groupByCustomField = (opps: Opportunity[], field: CustomField): ForecastGroup[] => {
+    const byValue = new Map<string, Opportunity[]>();
+    const noValue: Opportunity[] = [];
+    for (const opp of opps) {
+        const raw = opp.customFields?.[field.name];
+        const value = raw === undefined || raw === null ? "" : String(raw).trim();
+        if (value === "") {
+            noValue.push(opp);
+        } else {
+            if (!byValue.has(value)) byValue.set(value, []);
+            byValue.get(value)!.push(opp);
+        }
+    }
+    const groups: ForecastGroup[] = [];
+    for (const value of [...byValue.keys()].sort()) {
+        groups.push({ heading: value, opportunities: [...byValue.get(value)!].sort(byCloseDateAsc) });
+    }
+    if (noValue.length) groups.push({ heading: `No ${field.label}`, opportunities: [...noValue].sort(byCloseDateAsc) });
+    return groups;
+};
+
+/**
+ * Re-group every column's opportunities by a custom field (preserving each
+ * column's count/total). With no field selected, columns are returned as-is.
+ */
+export const regroupColumns = (columns: ForecastColumn[], field: CustomField | null): ForecastColumn[] => {
+    if (!field) return columns;
+    return columns.map(column => ({
+        ...column,
+        groups: groupByCustomField(
+            column.groups.flatMap(group => group.opportunities),
+            field,
+        ),
+    }));
 };

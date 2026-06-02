@@ -19,7 +19,23 @@ Source spec: `instructions.md`. Build order: F2 → F1 → F3 → F4.
   `value`); cards sorted by close date; seed spreads close dates incl. guaranteed
   past + future open opps. Pure `buildForecast` unit-tested (empty/boundaries/
   sorting/rollover), server open-filter test, Playwright board check, all green.
-- Feature 4 — not started.
+- **Feature 4 (group forecast by custom field)** — DONE & verified. "Group by"
+  control lists opportunity-scoped custom fields (+ No grouping); each column's
+  opps are sub-grouped by the field value with a "No {Label}" fallback group
+  last. Pure `groupByCustomField`/`regroupColumns` unit-tested (empty, all-missing,
+  heading sort); Playwright (control, value headings, No-Region fallback,
+  toggle-off). All green; tsc clean.
+
+### Feature 4 notes (for the writeup)
+- Grouping is exact-match and case-sensitive, so the seed's intentionally messy
+  region values ("NA" vs "na" vs "North America" vs "") each form their own
+  group. I removed the heading `uppercase` styling so "NA"/"na" don't render
+  identically (honest display). A natural future feature is normalizing custom-
+  field values (trim/case-fold) or making them a typed enum — the instructions
+  hinted at this. Left as-is to avoid silently merging real data.
+- When a grouping is active, the Past / No Date Set column groups by the field
+  value across all its opps (its Past vs No-Date sub-split only shows when not
+  grouping). Simpler than two-level nesting; flagged as a possible refinement.
 
 ## Feature 3 decisions (for the writeup)
 - "Past" uses calendar-month boundaries (close date before the 1st of the current

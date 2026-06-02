@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildForecast } from "./forecast";
-import { Opportunity, Stage } from "./types";
+import { buildForecast, groupByCustomField, regroupColumns } from "./forecast";
+import { CustomField, Opportunity, Stage } from "./types";
 
 const pendingStage: Stage = { id: 1, name: "Demo", status: "pending", conversionLikelihood: 0.5, order: 1 };
 
@@ -83,5 +83,50 @@ describe("buildForecast", () => {
         const december = new Date(2026, 11, 1); // December 2026
         const cols = buildForecast([], december);
         expect(cols.slice(0, 6).map(c => c.title)).toEqual(["December", "January", "February", "March", "April", "May"]);
+    });
+});
+
+const regionField: CustomField = { id: 2, name: "region", label: "Region", entity: "opportunity", type: "text" };
+const withRegion = (region: string | null, date = "2026-06-10"): Opportunity => {
+    const o = opp(date);
+    o.customFields = region === null ? {} : { region };
+    return o;
+};
+
+describe("groupByCustomField", () => {
+    it("groups by field value with headings sorted, missing values in a 'No {label}' group last", () => {
+        const groups = groupByCustomField(
+            [withRegion("NA"), withRegion("EMEA"), withRegion(null), withRegion("NA"), withRegion("")],
+            regionField,
+        );
+        expect(groups.map(g => g.heading)).toEqual(["EMEA", "NA", "No Region"]);
+        expect(groups.find(g => g.heading === "NA")?.opportunities).toHaveLength(2);
+        expect(groups.find(g => g.heading === "No Region")?.opportunities).toHaveLength(2); // null + ""
+    });
+
+    it("returns no groups for an empty list (empty state)", () => {
+        expect(groupByCustomField([], regionField)).toEqual([]);
+    });
+
+    it("returns a single 'No {label}' group when every opp lacks the value", () => {
+        const groups = groupByCustomField([withRegion(null), withRegion("")], regionField);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].heading).toBe("No Region");
+        expect(groups[0].opportunities).toHaveLength(2);
+    });
+});
+
+describe("regroupColumns", () => {
+    const cols = buildForecast([withRegion("NA", "2026-06-05"), withRegion(null, "2026-06-20")], today);
+
+    it("returns columns unchanged when no field is selected", () => {
+        expect(regroupColumns(cols, null)).toBe(cols);
+    });
+
+    it("regroups each column by the field, preserving column count and total", () => {
+        const regrouped = regroupColumns(cols, regionField);
+        const june = regrouped.find(c => c.key === "month-0")!;
+        expect(june.count).toBe(2); // column-level totals unchanged
+        expect(june.groups.map(g => g.heading)).toEqual(["NA", "No Region"]);
     });
 });

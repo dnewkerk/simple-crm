@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { CustomField, Opportunity } from "./types";
-import { buildForecast, ForecastColumn } from "./forecast";
+import { buildForecast, regroupColumns, ForecastColumn } from "./forecast";
 import { normalizeDateString, opportunityCustomFields, displayedCustomFields } from "./opportunity-form-utils";
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -55,7 +55,7 @@ const ForecastColumnView: React.FC<{ column: ForecastColumn; oppFields: CustomFi
                 group.opportunities.length === 0 ? null : (
                     <div key={gi}>
                         {group.heading && (
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-2 mb-1">{group.heading}</p>
+                            <p className="text-xs font-semibold text-gray-500 mt-2 mb-1">{group.heading}</p>
                         )}
                         {group.opportunities.map(opp => (
                             <OpportunityCard key={opp.id} opp={opp} oppFields={oppFields} />
@@ -70,6 +70,7 @@ const ForecastColumnView: React.FC<{ column: ForecastColumn; oppFields: CustomFi
 export const Forecast: React.FC = () => {
     const [opps, setOpps] = useState<Opportunity[] | null>(null);
     const [oppFields, setOppFields] = useState<CustomField[]>([]);
+    const [groupByName, setGroupByName] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -105,7 +106,8 @@ export const Forecast: React.FC = () => {
             </div>
         );
 
-    const columns = buildForecast(opps ?? [], new Date());
+    const groupByField = oppFields.find(f => f.name === groupByName) ?? null;
+    const columns = regroupColumns(buildForecast(opps ?? [], new Date()), groupByField);
     const totalOpen = opps?.length ?? 0;
 
     return (
@@ -116,6 +118,26 @@ export const Forecast: React.FC = () => {
                     {totalOpen} open {totalOpen === 1 ? "opportunity" : "opportunities"}
                 </span>
             </div>
+            {oppFields.length > 0 && (
+                <div className="flex items-center gap-2">
+                    <label htmlFor="forecast-group-by" className="text-sm font-medium">
+                        Group by
+                    </label>
+                    <select
+                        id="forecast-group-by"
+                        value={groupByName}
+                        onChange={e => setGroupByName(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                    >
+                        <option value="">No grouping</option>
+                        {oppFields.map(field => (
+                            <option key={field.id} value={field.name}>
+                                {field.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
             {totalOpen === 0 && (
                 <p className="text-gray-500">No open opportunities to forecast yet. Add one with a close date to see it here.</p>
             )}
