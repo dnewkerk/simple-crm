@@ -9,6 +9,8 @@
       "Bash(npm install *)",
       "Bash(npx tsc *)",
       "Bash(npx playwright *)",
+      "Bash(node code/client/e2e/*)",
+      "Bash(git restore *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git status)",
