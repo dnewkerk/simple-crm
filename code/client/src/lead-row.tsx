@@ -74,8 +74,10 @@ export const LeadRow: React.FC<{ lead: Lead; onUpdate: () => void }> = ({ lead, 
     };
 
     const deleteOpportunity = async (oppId: number) => {
-        await axios.delete(`/api/opportunities/${oppId}`);
-        fetchOpportunities();
+        if (confirm("Delete this opportunity?")) {
+            await axios.delete(`/api/opportunities/${oppId}`);
+            fetchOpportunities();
+        }
     };
 
     const openAddOpp = () => {

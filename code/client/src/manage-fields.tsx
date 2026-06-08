@@ -41,9 +41,11 @@ export const ManageFields: React.FC<{ onFieldsChanged: () => void }> = ({ onFiel
     };
 
     const deleteField = async (id: number) => {
-        await axios.delete(`/api/custom-fields/${id}`);
-        fetchFields();
-        onFieldsChanged();
+        if (confirm("Delete this custom field?")) {
+            await axios.delete(`/api/custom-fields/${id}`);
+            fetchFields();
+            onFieldsChanged();
+        }
     };
 
     return (
