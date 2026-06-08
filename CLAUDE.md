@@ -27,6 +27,23 @@ React + Express + TypeORM + SQLite + Vite. TypeScript throughout.
    Ask any clarifying questions here in ONE batch. Wait for my go-ahead.
 
 ## Phase 2 — Per item, in this exact order (no skipping)
+
+### Lane selection (decide and SAY this first, every item)
+Default to the **fast lane**; escalate to the **rigorous lane** when the change is
+tricky, risky, or ambiguous. State which lane and why out loud before starting.
+
+- **Fast lane** (`/ship-fast`) — obvious-for-bots, low-blast-radius, follows an
+  existing pattern. Generate → sanity-check (`tsc` + run/eyeball or a quick test)
+  → commit. No test-first.
+- **Rigorous lane** (the numbered loop below, via `/ship`) — new logic, a
+  migration/data-model change, security, or edge-case-heavy work. Full
+  spec → test-first → implement → `tsc` → Playwright → commit.
+
+The **quality floor is mandatory in BOTH lanes**: empty, loading, and error states
+are never skipped. The lane only changes how you verify, not whether the unhappy
+paths are handled. If a fast-lane item turns out to be tricky mid-flight, stop,
+say so, and escalate.
+
 For each approved feature/fix:
 1. Write a one-paragraph spec (user story -> acceptance criteria).
 2. Write the test(s) FIRST (unit/integration as appropriate; for UI-visible
