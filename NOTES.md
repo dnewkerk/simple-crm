@@ -101,6 +101,18 @@ migration classes directly into the DataSource so one path works everywhere.
   exact equality. They pass and the stored value is clean; exact match would be
   marginally stronger.
 
+## Observations to verify (Pipeline Kanban drag-and-drop)
+- Dropping a card onto a stage column that is only partially within the
+  horizontal-scroll viewport did not register a drop in a *fast synthetic*
+  Playwright drag (no `over`, so no persist). dnd-kit autoScroll should cover
+  this for a real user who hovers at the edge, but it's unverified by a human —
+  worth a manual check, or add an explicit horizontal autoscroll/scroll-into-view
+  on drag-over if reaching far-right columns feels awkward.
+- Optimistic column totals (Total Expected Value) briefly show stale numbers
+  when dragging to/from won/lost stages until the post-drop refetch lands, since
+  the client doesn't know the won/lost likelihood settings and intentionally
+  doesn't recompute `expectedValue` locally.
+
 ## Fixed in passing (while touching the code)
 - Null-guards on `POST`/`PUT /opportunities` (bad lead/stage → 400, unknown opp
   → 404) instead of an uncaught 500.
