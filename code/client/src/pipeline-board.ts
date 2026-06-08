@@ -30,3 +30,12 @@ export const buildStageColumns = (opps: Opportunity[], stages: Stage[]): StageCo
         return { stage, opportunities, count: opportunities.length, totalValue, totalExpectedValue };
     });
 };
+
+/**
+ * Optimistically reassign one opportunity to a new stage, returning a new array
+ * (inputs are not mutated). `expectedValue` is intentionally left as-is — it is
+ * recomputed authoritatively by the server and reconciled on the next refetch.
+ * An unknown `oppId` returns the list unchanged.
+ */
+export const moveOpportunityToStage = (opps: Opportunity[], oppId: number, stage: Stage): Opportunity[] =>
+    opps.map(o => (o.id === oppId ? { ...o, stage } : o));

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildStageColumns } from "./pipeline-board";
+import { buildStageColumns, moveOpportunityToStage } from "./pipeline-board";
 import { Opportunity, Stage } from "./types";
 
 const stage = (id: number, name: string, status: Stage["status"], order: number): Stage => ({
@@ -79,5 +79,36 @@ describe("buildStageColumns", () => {
         expect(cols).toHaveLength(4);
         expect(cols.reduce((n, c) => n + c.count, 0)).toBe(1);
         expect(cols.find(c => c.stage.id === 1)!.count).toBe(1);
+    });
+});
+
+describe("moveOpportunityToStage", () => {
+    it("reassigns the target opportunity to the new stage", () => {
+        const a = opp(lead2pending, 100, 50);
+        const b = opp(negotiation, 200, 100);
+        const next = moveOpportunityToStage([a, b], a.id, closedWon);
+        expect(next.find(o => o.id === a.id)!.stage).toBe(closedWon);
+    });
+
+    it("leaves other opportunities untouched", () => {
+        const a = opp(lead2pending, 100, 50);
+        const b = opp(negotiation, 200, 100);
+        const next = moveOpportunityToStage([a, b], a.id, closedWon);
+        expect(next.find(o => o.id === b.id)!.stage).toBe(negotiation);
+    });
+
+    it("does not mutate the input array or the moved opportunity", () => {
+        const a = opp(lead2pending, 100, 50);
+        const before = [a];
+        const next = moveOpportunityToStage(before, a.id, closedWon);
+        expect(next).not.toBe(before);
+        expect(a.stage).toBe(lead2pending); // original object unchanged
+    });
+
+    it("returns the list unchanged when the id is not found (edge input)", () => {
+        const a = opp(lead2pending, 100, 50);
+        const next = moveOpportunityToStage([a], 9999, closedWon);
+        expect(next.map(o => o.id)).toEqual([a.id]);
+        expect(next[0].stage).toBe(lead2pending);
     });
 });
