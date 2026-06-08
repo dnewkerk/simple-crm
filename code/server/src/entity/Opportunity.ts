@@ -30,4 +30,10 @@ export class Opportunity {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     @Column("simple-json", { nullable: true })
     customFields: Record<string, any> = {};
+
+    // Sort order of this opportunity within its stage column on the pipeline
+    // Kanban board (0-based). Nullable for rows created before the board existed;
+    // GET /opportunities orders by it, and dropping a card persists new values.
+    @Column({ type: "integer", nullable: true })
+    position: number | null;
 }

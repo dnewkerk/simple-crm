@@ -82,6 +82,51 @@ describe("PUT /opportunities/:id", () => {
     });
 });
 
+describe("PUT /opportunities/reorder", () => {
+    const make = (value: number, name: string) =>
+        request(app).post("/opportunities").send({ leadId, stageId, value, name }).then(r => r.body);
+
+    it("persists an explicit card order within a stage", async () => {
+        const a = await make(2000, "Order A");
+        const b = await make(2000, "Order B");
+        const c = await make(2000, "Order C");
+
+        const res = await request(app).put("/opportunities/reorder").send({ stageId, orderedIds: [c.id, a.id, b.id] });
+        expect(res.status).toBe(200);
+
+        const all = (await request(app).get("/opportunities")).body.filter((o: { stage: { id: number } }) => o.stage.id === stageId);
+        const idx = (id: number) => all.findIndex((o: { id: number }) => o.id === id);
+        expect(idx(c.id)).toBeLessThan(idx(a.id));
+        expect(idx(a.id)).toBeLessThan(idx(b.id));
+    });
+
+    it("moves a card to another stage at a position and recomputes expectedValue", async () => {
+        const m = AppDataSource.manager;
+        const wonStage = await m.getRepository(Stage).save(
+            Object.assign(new Stage(), { name: "Won2", status: "won", conversionLikelihood: 1, order: 98, expectedValue: 0 }),
+        );
+        const opp = await make(5000, "Mover"); // pending: expected 2500
+
+        const res = await request(app).put("/opportunities/reorder").send({ stageId: wonStage.id, orderedIds: [opp.id] });
+        expect(res.status).toBe(200);
+
+        const reloaded = (await request(app).get("/opportunities")).body.find((o: { id: number }) => o.id === opp.id);
+        expect(reloaded.stage.id).toBe(wonStage.id);
+        expect(reloaded.expectedValue).toBe(5000); // 5000 * won likelihood 1.0
+        expect(reloaded.position).toBe(0);
+    });
+
+    it("returns 400 for an invalid stage (error path)", async () => {
+        const res = await request(app).put("/opportunities/reorder").send({ stageId: 99999, orderedIds: [] });
+        expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when an opportunity id is unknown (edge input)", async () => {
+        const res = await request(app).put("/opportunities/reorder").send({ stageId, orderedIds: [99999] });
+        expect(res.status).toBe(400);
+    });
+});
+
 describe("GET /opportunities/open", () => {
     it("returns only opportunities on a pending stage", async () => {
         const m = AppDataSource.manager;

@@ -35,9 +35,19 @@ const run = async () => {
         await page.mouse.up();
     };
 
+    // Choose source/target dynamically from on-screen columns so the test is robust
+    // to data drift: FROM = a visible stage with cards, TO = a different visible one.
+    const stages = await (await page.request.get(`${BASE}/api/stages`)).json();
+    const opps = await (await page.request.get(`${BASE}/api/opportunities`)).json();
+    const countFor = id => opps.filter(o => o.stage.id === id).length;
+    const visible = stages.sort((a, b) => a.order - b.order).slice(0, 4);
+    const source = [...visible].sort((a, b) => countFor(b.id) - countFor(a.id))[0];
+    const targetStage = visible.find(s => s.id !== source.id);
+    if (!source || countFor(source.id) < 1 || !targetStage) await fail("Need two on-screen columns with a draggable card");
+
     // --- Scenario A: successful move persists and updates both column counts ---
-    const FROM = "Cold Lead";
-    const TO = "Warm Lead";
+    const FROM = source.name;
+    const TO = targetStage.name;
     if ((await countOf(FROM)) < 1) await fail(`No cards in "${FROM}" to drag`);
     const fromBefore = await countOf(FROM);
     const toBefore = await countOf(TO);
@@ -56,18 +66,21 @@ const run = async () => {
     await page.screenshot({ path: shot("pipeline-dnd-success"), fullPage: true });
 
     // --- Scenario B: server error reverts the optimistic move and shows a banner ---
-    await page.route("**/api/opportunities/*", route =>
+    const oppWriteRoute = /\/api\/opportunities\//; // matches /reorder and /:id
+    await page.route(oppWriteRoute, route =>
         route.request().method() === "PUT" ? route.fulfill({ status: 500, body: "boom" }) : route.continue(),
     );
-    const errFrom = await countOf(TO); // drag back from the now-populated column
-    await drag(TO, FROM);
-    await page.getByText(/Could not move/i).waitFor({ timeout: 5000 })
+    const errFrom = await countOf(FROM); // same (proven) direction as scenario A, now failing
+    const errTo = await countOf(TO);
+    await drag(FROM, TO);
+    await page.getByText(/Could not (move|save)/i).waitFor({ timeout: 5000 })
         .catch(async () => await fail("Move-error banner not shown on server 500"));
     await page.waitForLoadState("networkidle");
-    const errAfter = await countOf(TO);
-    if (errAfter !== errFrom) await fail(`Failed move should revert: expected ${errFrom}, got ${errAfter}`);
+    if ((await countOf(FROM)) !== errFrom || (await countOf(TO)) !== errTo) {
+        await fail(`Failed move should revert counts to ${errFrom}/${errTo}`);
+    }
     console.log("✓ Server error shows a banner and reverts the optimistic move");
-    await page.unroute("**/api/opportunities/*");
+    await page.unroute(oppWriteRoute);
 
     await browser.close();
     console.log("ALL PLAYWRIGHT CHECKS PASSED");

@@ -32,6 +32,7 @@ export interface Opportunity {
     expectedValue?: number;
     name?: string;
     expectedCloseDate?: string | null;
+    position?: number | null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     customFields?: Record<string, any>;
 }

@@ -147,6 +147,11 @@ export async function seedDatabase({ clearFirst = false }: { clearFirst?: boolea
         const stageOpps = await connection.manager.getRepository(Opportunity).find({ where: { stage: { id: stage.id } } });
         stage.expectedValue = stageOpps.reduce((sum, opp) => sum + (opp.expectedValue || 0), 0);
         await connection.manager.getRepository(Stage).save(stage);
+        // Assign a stable 0-based board position within each stage column.
+        for (let i = 0; i < stageOpps.length; i++) {
+            stageOpps[i].position = i;
+            await connection.manager.getRepository(Opportunity).save(stageOpps[i]);
+        }
     }
 
     console.log("✓ Seeding complete!");

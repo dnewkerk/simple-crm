@@ -139,7 +139,10 @@ export const createApp = () => {
 
     // Opportunities endpoints
     app.get("/opportunities", async (req, res) => {
-        const opportunities = await AppDataSource.manager.getRepository(Opportunity).find();
+        // Ordered by per-stage board position so the Kanban reflects the saved order.
+        const opportunities = await AppDataSource.manager
+            .getRepository(Opportunity)
+            .find({ order: { position: "ASC", id: "ASC" } });
         res.json(opportunities);
     });
 
@@ -174,6 +177,8 @@ export const createApp = () => {
         opp.name = req.body.name;
         opp.expectedCloseDate = req.body.expectedCloseDate ?? null;
         opp.customFields = req.body.customFields || {};
+        // Append to the end of the target stage's board column.
+        opp.position = await AppDataSource.manager.getRepository(Opportunity).count({ where: { stage: { id: stage.id } } });
         const likelihood =
             opp.stage.status === "won" ? wonLikelihood : opp.stage.status === "lost" ? lostLikelihood : opp.stage.conversionLikelihood;
         opp.expectedValue = opp.value * likelihood;
@@ -183,6 +188,60 @@ export const createApp = () => {
         await AppDataSource.manager.getRepository(Stage).save(opp.stage);
 
         res.json(opp);
+    });
+
+    // Persist the board order of a stage column. `orderedIds` is the full list of
+    // opportunity ids in their new top-to-bottom order; each is assigned that
+    // stage and its index as `position`. Cards moved in from another stage have
+    // their expectedValue recomputed and both stages' cached totals rebalanced.
+    // Declared BEFORE "/:id" so "reorder" isn't matched as an :id.
+    app.put("/opportunities/reorder", async (req, res) => {
+        const { stageId, orderedIds } = req.body;
+        if (!Array.isArray(orderedIds)) {
+            res.status(400).json({ error: "orderedIds must be an array" });
+            return;
+        }
+        const stageRepo = AppDataSource.manager.getRepository(Stage);
+        const oppRepo = AppDataSource.manager.getRepository(Opportunity);
+
+        const targetStage = await stageRepo.findOne({ where: { id: stageId } });
+        if (!targetStage) {
+            res.status(400).json({ error: "Invalid stage" });
+            return;
+        }
+
+        const settings = await AppDataSource.manager.getRepository(AppSetting).find();
+        const wonLikelihood = parseFloat(settings.find(s => s.key === "wonStageLikelihood")?.value ?? "1");
+        const lostLikelihood = parseFloat(settings.find(s => s.key === "lostStageLikelihood")?.value ?? "0");
+        const likelihoodFor = (stage: Stage) =>
+            stage.status === "won" ? wonLikelihood : stage.status === "lost" ? lostLikelihood : stage.conversionLikelihood;
+
+        // Accumulate stage-total adjustments on a single instance per stage id so
+        // repeated source stages don't clobber each other on save.
+        const changedStages = new Map<number, Stage>([[targetStage.id, targetStage]]);
+
+        for (let i = 0; i < orderedIds.length; i++) {
+            const opp = await oppRepo.findOne({ where: { id: orderedIds[i] } });
+            if (!opp) {
+                res.status(400).json({ error: `Unknown opportunity ${orderedIds[i]}` });
+                return;
+            }
+            opp.position = i;
+            if (opp.stage.id !== targetStage.id) {
+                const oldExpected = opp.expectedValue || 0;
+                const oldStage = changedStages.get(opp.stage.id) ?? opp.stage;
+                changedStages.set(oldStage.id, oldStage);
+                opp.stage = targetStage;
+                opp.expectedValue = opp.value * likelihoodFor(targetStage);
+                oldStage.expectedValue = (oldStage.expectedValue || 0) - oldExpected;
+                targetStage.expectedValue = (targetStage.expectedValue || 0) + opp.expectedValue;
+            }
+            await oppRepo.save(opp);
+        }
+        for (const stage of changedStages.values()) await stageRepo.save(stage);
+
+        const updated = await oppRepo.find({ where: { stage: { id: targetStage.id } }, order: { position: "ASC", id: "ASC" } });
+        res.json(updated);
     });
 
     app.put("/opportunities/:id", async (req, res) => {
