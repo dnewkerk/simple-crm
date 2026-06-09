@@ -199,15 +199,21 @@ export const Pipeline: React.FC = () => {
             if (activeIdx !== -1 && overIdx !== -1 && activeIdx !== overIdx) next = arrayMove(opps, activeIdx, overIdx);
         }
         setOpps(next);
-        persistOrder(overContainer, next);
+        persistOrder(movedId, overContainer, next);
     };
 
-    const persistOrder = async (stageId: number, list: Opportunity[]) => {
-        const orderedIds = list.filter(o => o.stage.id === stageId).map(o => o.id);
+    // Persist a single card's placement: send the ids of its new neighbors so the
+    // server writes only this card's fractional position (option 1). Either
+    // neighbor is omitted at the top/bottom of a column or when it lands alone.
+    const persistOrder = async (movedId: number, stageId: number, list: Opportunity[]) => {
+        const column = list.filter(o => o.stage.id === stageId);
+        const idx = column.findIndex(o => o.id === movedId);
+        const prevId = idx > 0 ? column[idx - 1].id : undefined;
+        const nextId = idx >= 0 && idx < column.length - 1 ? column[idx + 1].id : undefined;
         const snapshot = dragSnapshot.current;
         setMoveError("");
         try {
-            await axios.put("/api/opportunities/reorder", { stageId, orderedIds });
+            await axios.put(`/api/opportunities/${movedId}/move`, { stageId, prevId, nextId });
             // Reconcile expectedValue / column totals with the server's values.
             const fresh = await axios.get<Opportunity[]>("/api/opportunities");
             setOpps(fresh.data);

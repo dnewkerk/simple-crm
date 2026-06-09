@@ -244,6 +244,79 @@ export const createApp = () => {
         res.json(updated);
     });
 
+    // Move ONE card to a position, writing only that card's fractional `position`
+    // (option 1). `prevId`/`nextId` are the cards it is dropped between (either may
+    // be omitted for top/bottom/empty). The new position is the midpoint of the
+    // neighbors, so a same-stage reorder is a single-row write; a cross-stage move
+    // additionally recomputes expectedValue and rebalances the two stage totals.
+    // Declared BEFORE "/:id" so a two-segment path isn't swallowed by it.
+    app.put("/opportunities/:id/move", async (req, res) => {
+        const { stageId, prevId, nextId } = req.body;
+        const oppRepo = AppDataSource.manager.getRepository(Opportunity);
+        const stageRepo = AppDataSource.manager.getRepository(Stage);
+
+        const opp = await oppRepo.findOne({ where: { id: parseInt(req.params.id) } });
+        if (!opp) {
+            res.status(404).json({ error: "Opportunity not found" });
+            return;
+        }
+        const targetStage = await stageRepo.findOne({ where: { id: stageId } });
+        if (!targetStage) {
+            res.status(400).json({ error: "Invalid stage" });
+            return;
+        }
+
+        const posOf = async (id: number | undefined | null): Promise<number | null> => {
+            if (id == null) return null;
+            const neighbor = await oppRepo.findOne({ where: { id } });
+            return neighbor && neighbor.position != null ? neighbor.position : null;
+        };
+        // Renumber a column to integer gaps — the rare fallback when a gap between
+        // two neighbors has been split so many times it can no longer be halved.
+        const rebalance = async (sid: number) => {
+            const list = await oppRepo.find({ where: { stage: { id: sid } }, order: { position: "ASC", id: "ASC" } });
+            for (let i = 0; i < list.length; i++) {
+                list[i].position = i;
+                await oppRepo.save(list[i]);
+            }
+        };
+
+        let prevPos = await posOf(prevId);
+        let nextPos = await posOf(nextId);
+        const between = (p: number | null, n: number | null) =>
+            p != null && n != null ? (p + n) / 2 : n != null ? n - 1 : p != null ? p + 1 : 0;
+        let position = between(prevPos, nextPos);
+        // Gap collapsed (midpoint not strictly between the neighbors): rebalance and retry.
+        if (prevPos != null && nextPos != null && (position <= prevPos || position >= nextPos)) {
+            await rebalance(targetStage.id);
+            prevPos = await posOf(prevId);
+            nextPos = await posOf(nextId);
+            position = between(prevPos, nextPos);
+        }
+
+        const oldStage = opp.stage;
+        opp.position = position;
+        if (oldStage.id !== targetStage.id) {
+            const settings = await AppDataSource.manager.getRepository(AppSetting).find();
+            const wonLikelihood = parseFloat(settings.find(s => s.key === "wonStageLikelihood")?.value ?? "1");
+            const lostLikelihood = parseFloat(settings.find(s => s.key === "lostStageLikelihood")?.value ?? "0");
+            const likelihood =
+                targetStage.status === "won" ? wonLikelihood : targetStage.status === "lost" ? lostLikelihood : targetStage.conversionLikelihood;
+            const oldExpected = opp.expectedValue || 0;
+            opp.stage = targetStage;
+            opp.expectedValue = opp.value * likelihood;
+            await oppRepo.save(opp);
+            oldStage.expectedValue = (oldStage.expectedValue || 0) - oldExpected;
+            await stageRepo.save(oldStage);
+            targetStage.expectedValue = (targetStage.expectedValue || 0) + opp.expectedValue;
+            await stageRepo.save(targetStage);
+        } else {
+            await oppRepo.save(opp); // same-stage reorder → single row written
+        }
+
+        res.json(opp);
+    });
+
     app.put("/opportunities/:id", async (req, res) => {
         const settings = await AppDataSource.manager.getRepository(AppSetting).find();
         const minValue = parseFloat(settings.find(s => s.key === "minimumOpportunityValue")?.value ?? "0");

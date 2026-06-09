@@ -127,6 +127,103 @@ describe("PUT /opportunities/reorder", () => {
     });
 });
 
+describe("PUT /opportunities/:id/move (fractional, single-row)", () => {
+    // A dedicated stage so positions are predictable and isolated from other tests.
+    let moveStageId: number;
+    const getOpp = async (id: number) =>
+        (await request(app).get("/opportunities")).body.find((o: { id: number }) => o.id === id);
+    const make = (stage: number, value: number, name: string) =>
+        request(app).post("/opportunities").send({ leadId, stageId: stage, value, name }).then(r => r.body);
+
+    beforeAll(async () => {
+        const stage = await AppDataSource.manager.getRepository(Stage).save(
+            Object.assign(new Stage(), { name: "MoveLane", status: "pending", conversionLikelihood: 0.5, order: 50, expectedValue: 0 }),
+        );
+        moveStageId = stage.id;
+    });
+
+    it("places a card between two neighbors WITHOUT changing their rows (happy + single-row)", async () => {
+        const a = await make(moveStageId, 2000, "A"); // position 0
+        const b = await make(moveStageId, 2000, "B"); // position 1
+        const c = await make(moveStageId, 2000, "C"); // position 2
+        const aPosBefore = (await getOpp(a.id)).position;
+        const bPosBefore = (await getOpp(b.id)).position;
+
+        // Move C to sit between A and B.
+        const res = await request(app)
+            .put(`/opportunities/${c.id}/move`)
+            .send({ stageId: moveStageId, prevId: a.id, nextId: b.id });
+        expect(res.status).toBe(200);
+
+        const cPos = (await getOpp(c.id)).position;
+        expect(cPos).toBeGreaterThan(aPosBefore);
+        expect(cPos).toBeLessThan(bPosBefore);
+        // The defining property of option 1: neighbors' rows are untouched.
+        expect((await getOpp(a.id)).position).toBe(aPosBefore);
+        expect((await getOpp(b.id)).position).toBe(bPosBefore);
+
+        // GET order reflects A, C, B.
+        const inStage = (await request(app).get("/opportunities")).body
+            .filter((o: { stage: { id: number } }) => o.stage.id === moveStageId)
+            .map((o: { id: number }) => o.id);
+        const idx = (id: number) => inStage.indexOf(id);
+        expect(idx(a.id)).toBeLessThan(idx(c.id));
+        expect(idx(c.id)).toBeLessThan(idx(b.id));
+    });
+
+    it("drops at the top (nextId only) and bottom (prevId only)", async () => {
+        const top = await make(moveStageId, 2000, "ToTop");
+        const first = (await request(app).get("/opportunities")).body
+            .filter((o: { stage: { id: number } }) => o.stage.id === moveStageId)
+            .sort((x: { position: number }, y: { position: number }) => x.position - y.position)[0];
+        const res = await request(app).put(`/opportunities/${top.id}/move`).send({ stageId: moveStageId, nextId: first.id });
+        expect(res.status).toBe(200);
+        expect((await getOpp(top.id)).position).toBeLessThan(first.position);
+    });
+
+    it("moves into an EMPTY stage with no neighbors → position 0 and recomputed expectedValue (empty/cross-stage)", async () => {
+        const empty = await AppDataSource.manager.getRepository(Stage).save(
+            Object.assign(new Stage(), { name: "EmptyWon", status: "won", conversionLikelihood: 1, order: 60, expectedValue: 0 }),
+        );
+        const opp = await make(moveStageId, 5000, "Mover"); // pending: expected 2500
+        const res = await request(app).put(`/opportunities/${opp.id}/move`).send({ stageId: empty.id });
+        expect(res.status).toBe(200);
+
+        const reloaded = await getOpp(opp.id);
+        expect(reloaded.stage.id).toBe(empty.id);
+        expect(reloaded.position).toBe(0);
+        expect(reloaded.expectedValue).toBe(5000); // 5000 * won likelihood 1.0
+    });
+
+    it("rebalances cross-stage totals", async () => {
+        const src = await AppDataSource.manager.getRepository(Stage).save(
+            Object.assign(new Stage(), { name: "RbSrc", status: "pending", conversionLikelihood: 0.5, order: 61, expectedValue: 0 }),
+        );
+        const dst = await AppDataSource.manager.getRepository(Stage).save(
+            Object.assign(new Stage(), { name: "RbDst", status: "won", conversionLikelihood: 1, order: 62, expectedValue: 0 }),
+        );
+        const opp = await make(src.id, 4000, "Rebalance"); // src expected +2000
+        const srcBefore = (await request(app).get("/stages")).body.find((s: { id: number }) => s.id === src.id).expectedValue;
+
+        await request(app).put(`/opportunities/${opp.id}/move`).send({ stageId: dst.id });
+
+        const stages = (await request(app).get("/stages")).body;
+        expect(stages.find((s: { id: number }) => s.id === src.id).expectedValue).toBe(srcBefore - 2000);
+        expect(stages.find((s: { id: number }) => s.id === dst.id).expectedValue).toBe(4000); // 4000 * 1.0
+    });
+
+    it("returns 404 for an unknown opportunity (error path)", async () => {
+        const res = await request(app).put("/opportunities/99999/move").send({ stageId: moveStageId });
+        expect(res.status).toBe(404);
+    });
+
+    it("returns 400 for an invalid target stage (error path)", async () => {
+        const opp = await make(moveStageId, 2000, "BadStage");
+        const res = await request(app).put(`/opportunities/${opp.id}/move`).send({ stageId: 99999 });
+        expect(res.status).toBe(400);
+    });
+});
+
 describe("GET /opportunities/open", () => {
     it("returns only opportunities on a pending stage", async () => {
         const m = AppDataSource.manager;

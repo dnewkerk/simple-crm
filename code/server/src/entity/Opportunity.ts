@@ -31,9 +31,11 @@ export class Opportunity {
     @Column("simple-json", { nullable: true })
     customFields: Record<string, any> = {};
 
-    // Sort order of this opportunity within its stage column on the pipeline
-    // Kanban board (0-based). Nullable for rows created before the board existed;
-    // GET /opportunities orders by it, and dropping a card persists new values.
-    @Column({ type: "integer", nullable: true })
+    // Fractional sort key of this opportunity within its stage column on the
+    // pipeline Kanban board. A drop is persisted by writing ONLY this card's
+    // position to the midpoint of its two new neighbors, so reordering touches a
+    // single row. Nullable for rows created before the board existed; GET
+    // /opportunities orders by it.
+    @Column("real", { nullable: true })
     position: number | null;
 }

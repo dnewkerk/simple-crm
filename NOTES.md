@@ -113,6 +113,20 @@ migration classes directly into the DataSource so one path works everywhere.
   the client doesn't know the won/lost likelihood settings and intentionally
   doesn't recompute `expectedValue` locally.
 
+## Fractional card positions (option 1) — notes
+- `PUT /opportunities/reorder` is now **unused by the client** (it switched to the
+  single-row `PUT /opportunities/:id/move`). Kept intact, with its 4 tests, as a
+  bulk-reorder API and because it's harmless; remove if we want one path only.
+- A cross-stage move still writes **3 rows** (the moved opp + both stage
+  `expectedValue` totals) because those totals are denormalized. Reducible to a
+  true single-row write only by computing stage totals on read — deferred, it's a
+  broader change touching every total.
+- Precision/rebalance fallback: when a gap between two neighbors is split so many
+  times it can't be halved (~50 splits into the *same* slot), the move handler
+  renumbers that one column to integer gaps (a bulk write) and retries. Rare by
+  design; not exercised by an automated test (covered by reasoning + the unit
+  tests that assert strict-between placement). Add a stress test if it matters.
+
 ## Fixed in passing (while touching the code)
 - Null-guards on `POST`/`PUT /opportunities` (bad lead/stage → 400, unknown opp
   → 404) instead of an uncaught 500.

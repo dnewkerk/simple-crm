@@ -51,8 +51,8 @@ const run = async () => {
     await page.mouse.move(lastBox.x + lastBox.width / 2, lastBox.y + lastBox.height + 8, { steps: 6 });
     await page.mouse.up();
 
-    await page.waitForResponse(r => r.url().includes("/api/opportunities/reorder") && r.request().method() === "PUT", { timeout: 5000 })
-        .catch(async () => await fail("No reorder PUT fired on drop"));
+    await page.waitForResponse(r => /\/api\/opportunities\/\d+\/move$/.test(r.url()) && r.request().method() === "PUT", { timeout: 5000 })
+        .catch(async () => await fail("No move PUT fired on drop"));
     await page.waitForLoadState("networkidle");
 
     const after = await orderedIds(target.id);
