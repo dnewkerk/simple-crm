@@ -36,14 +36,15 @@ const run = async () => {
     };
 
     // Choose source/target dynamically from on-screen columns so the test is robust
-    // to data drift: FROM = a visible stage with cards, TO = a different visible one.
+    // to data drift. TARGET is the first (intake) stage so move-rules never block
+    // it; SOURCE is a different visible stage with the most cards.
     const stages = await (await page.request.get(`${BASE}/api/stages`)).json();
     const opps = await (await page.request.get(`${BASE}/api/opportunities`)).json();
     const countFor = id => opps.filter(o => o.stage.id === id).length;
     const visible = stages.sort((a, b) => a.order - b.order).slice(0, 4);
-    const source = [...visible].sort((a, b) => countFor(b.id) - countFor(a.id))[0];
-    const targetStage = visible.find(s => s.id !== source.id);
-    if (!source || countFor(source.id) < 1 || !targetStage) await fail("Need two on-screen columns with a draggable card");
+    const targetStage = visible[0]; // lowest order → first/intake column, rule-free
+    const source = [...visible].filter(s => s.id !== targetStage.id).sort((a, b) => countFor(b.id) - countFor(a.id))[0];
+    if (!targetStage || !source || countFor(source.id) < 1) await fail("Need two on-screen columns with a draggable card");
 
     // --- Scenario A: successful move persists and updates both column counts ---
     const FROM = source.name;

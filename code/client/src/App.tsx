@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Toaster } from "react-hot-toast";
 import { AddLead } from "./add-lead";
 import { Leads } from "./leads";
 import { Pipeline } from "./pipeline";
@@ -23,6 +24,7 @@ export const App: React.FC = () => {
 
     return (
         <div className="p-4 space-y-8">
+            <Toaster position="top-right" />
             <div className="flex justify-between items-center">
                 <h1 className="text-xl font-bold">SimpleCRM</h1>
                 <div className="flex gap-2">

@@ -15,10 +15,15 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import toast from "react-hot-toast";
 import { CustomField, Opportunity, Stage } from "./types";
 import { buildStageColumns, StageColumn } from "./pipeline-board";
+import { failedMoveRules } from "./pipeline-rules";
 import { opportunityCustomFields } from "./opportunity-form-utils";
 import { OpportunityCard } from "./opportunity-card";
+
+const MOVE_BLOCKED_TOAST_ID = "pipeline-move-blocked";
+const HIGHLIGHT_MS = 10000;
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
@@ -33,7 +38,11 @@ const containerOf = (id: string | number, opps: Opportunity[]): number | null =>
     return opp ? opp.stage.id : null;
 };
 
-const SortableCard: React.FC<{ opp: Opportunity; oppFields: CustomField[] }> = ({ opp, oppFields }) => {
+const SortableCard: React.FC<{ opp: Opportunity; oppFields: CustomField[]; highlighted: boolean }> = ({
+    opp,
+    oppFields,
+    highlighted,
+}) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(opp.id) });
     const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
     return (
@@ -45,12 +54,16 @@ const SortableCard: React.FC<{ opp: Opportunity; oppFields: CustomField[] }> = (
             className="cursor-grab touch-none rounded"
             aria-label={`Drag ${opp.name || "opportunity"} to reorder or move stage`}
         >
-            <OpportunityCard opp={opp} oppFields={oppFields} />
+            <OpportunityCard opp={opp} oppFields={oppFields} highlighted={highlighted} />
         </div>
     );
 };
 
-const StageColumnView: React.FC<{ column: StageColumn; oppFields: CustomField[] }> = ({ column, oppFields }) => {
+const StageColumnView: React.FC<{ column: StageColumn; oppFields: CustomField[]; highlightedId: number | null }> = ({
+    column,
+    oppFields,
+    highlightedId,
+}) => {
     const { stage } = column;
     const { setNodeRef, isOver } = useDroppable({ id: columnDropId(stage.id) });
     const tint = stage.status === "won" ? "bg-green-50" : stage.status === "lost" ? "bg-red-50" : "bg-gray-100";
@@ -72,7 +85,9 @@ const StageColumnView: React.FC<{ column: StageColumn; oppFields: CustomField[] 
                 {column.count === 0 ? (
                     <p className="text-sm text-gray-400">No opportunities</p>
                 ) : (
-                    column.opportunities.map(opp => <SortableCard key={opp.id} opp={opp} oppFields={oppFields} />)
+                    column.opportunities.map(opp => (
+                        <SortableCard key={opp.id} opp={opp} oppFields={oppFields} highlighted={opp.id === highlightedId} />
+                    ))
                 )}
             </SortableContext>
         </div>
@@ -87,8 +102,14 @@ export const Pipeline: React.FC = () => {
     const [error, setError] = useState("");
     const [moveError, setMoveError] = useState("");
     const [activeId, setActiveId] = useState<number | null>(null);
+    // The card whose move was rejected by a rule; gets a light-yellow highlight.
+    const [highlightedId, setHighlightedId] = useState<number | null>(null);
     // Snapshot of the order before a drag starts, so a failed save can revert.
     const dragSnapshot = useRef<Opportunity[]>([]);
+    // Single timer that clears the highlight AND dismisses the toast together at 10s.
+    const flagTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => () => flagTimer.current != null && clearTimeout(flagTimer.current), []);
 
     const sensors = useSensors(
         // Require a small drag distance so clicking a card's "More" button isn't a drag.
@@ -157,6 +178,20 @@ export const Pipeline: React.FC = () => {
         const overContainer = containerOf(over.id, opps);
         if (overContainer == null) return;
 
+        // Enforce the target column's entry rules on a cross-stage move. The
+        // original stage comes from the pre-drag snapshot (drag-over already moved
+        // the card optimistically). Failing rules block the move entirely.
+        const movedId = Number(active.id);
+        const original = dragSnapshot.current.find(o => o.id === movedId);
+        if (original && original.stage.id !== overContainer) {
+            const failures = failedMoveRules(original, stageById(overContainer), stages);
+            if (failures.length > 0) {
+                setOpps(dragSnapshot.current); // revert — the card stays put
+                flagFailedMove(movedId, failures);
+                return;
+            }
+        }
+
         let next = opps;
         if (!isColumnId(over.id)) {
             const activeIdx = opps.findIndex(o => o.id === Number(active.id));
@@ -180,6 +215,46 @@ export const Pipeline: React.FC = () => {
             setOpps(snapshot); // revert the optimistic reorder
             setMoveError("Could not save the new card order. Please try again.");
         }
+    };
+
+    // Highlight the rejected card and raise a toast listing the failed rules. A
+    // single 10s timer clears both at once; a repeat move resets that timer.
+    const flagFailedMove = (oppId: number, failures: string[]) => {
+        if (flagTimer.current != null) clearTimeout(flagTimer.current);
+        setHighlightedId(oppId);
+        toast.custom(
+            t => (
+                <div
+                    role="alert"
+                    className={`max-w-sm bg-white border border-yellow-300 rounded shadow-lg p-3 ${t.visible ? "" : "opacity-0"}`}
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium text-gray-800">Can’t move this opportunity yet:</p>
+                        <button
+                            onClick={() => {
+                                if (flagTimer.current != null) clearTimeout(flagTimer.current);
+                                setHighlightedId(null);
+                                toast.dismiss(MOVE_BLOCKED_TOAST_ID);
+                            }}
+                            className="text-gray-400 hover:text-gray-600 text-sm leading-none"
+                            aria-label="Dismiss"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <ul className="mt-1 list-disc list-inside text-sm text-gray-600">
+                        {failures.map((f, i) => (
+                            <li key={i}>{f}</li>
+                        ))}
+                    </ul>
+                </div>
+            ),
+            { id: MOVE_BLOCKED_TOAST_ID, duration: Infinity },
+        );
+        flagTimer.current = setTimeout(() => {
+            setHighlightedId(null);
+            toast.dismiss(MOVE_BLOCKED_TOAST_ID);
+        }, HIGHLIGHT_MS);
     };
 
     if (loading) return <p className="text-gray-500">Loading pipeline…</p>;
@@ -238,7 +313,7 @@ export const Pipeline: React.FC = () => {
             >
                 <div className="flex overflow-x-auto pb-4 items-start">
                     {columns.map(column => (
-                        <StageColumnView key={column.stage.id} column={column} oppFields={oppFields} />
+                        <StageColumnView key={column.stage.id} column={column} oppFields={oppFields} highlightedId={highlightedId} />
                     ))}
                 </div>
                 <DragOverlay>
